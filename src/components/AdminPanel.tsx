@@ -52,6 +52,7 @@ import { PerfectPayIntegration } from './tools/PerfectPayIntegration';
 import { MemberAreasManager } from './MemberAreasManager';
 import { DigitalProductsManager } from './DigitalProductsManager';
 import { UserAccessManager } from './UserAccessManager';
+import { AdminBannersManager } from './AdminBannersManager';
 import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
@@ -75,7 +76,13 @@ export const AdminPanel: React.FC = () => {
     resetLoginConfig,
     allCertificates,
     adminTab,
-    setAdminTab
+    setAdminTab,
+    getHeroBanners,
+    saveHeroBanner,
+    deleteHeroBanner,
+    toggleHeroBannerStatus,
+    memberAreas,
+    digitalProducts
   } = useStore();
 
   const activeAdminTab = adminTab || 'dashboard';
@@ -99,6 +106,7 @@ export const AdminPanel: React.FC = () => {
       icon: Layers,
       tabs: [
         { id: 'member_areas', label: 'Áreas de Membros', icon: Layers },
+        { id: 'banners', label: 'Banners & Vitrine', icon: Crown },
         { id: 'digital_products', label: 'Produtos Digitais', icon: PlaySquare },
         { id: 'courses', label: 'Cursos & Formações', icon: BookOpen },
         { id: 'modules_lessons', label: 'Aulas & Módulos', icon: Video },
@@ -428,6 +436,19 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB: HERO BANNERS & VITRINE */}
+      {activeAdminTab === 'banners' && (
+        <AdminBannersManager
+          banners={getHeroBanners()}
+          memberAreas={memberAreas}
+          courses={courses}
+          digitalProducts={digitalProducts}
+          onSaveBanner={(banner) => saveHeroBanner(banner)}
+          onDeleteBanner={(id) => deleteHeroBanner(id)}
+          onToggleStatus={(id) => toggleHeroBannerStatus(id)}
+        />
       )}
 
       {/* TAB: MULTI ÁREAS DE MEMBROS (MÓDULO 30) */}

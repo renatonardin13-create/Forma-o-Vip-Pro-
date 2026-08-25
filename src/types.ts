@@ -340,3 +340,65 @@ export interface UserAreaAccess {
   updatedAt: string;
 }
 
+export type BannerTargetType = 
+  | 'course' 
+  | 'lesson' 
+  | 'ebook' 
+  | 'app' 
+  | 'digital_product' 
+  | 'offer' 
+  | 'external_link' 
+  | 'tab_navigation';
+
+export type BannerCategory = 
+  | 'treinamento' 
+  | 'ebook' 
+  | 'aplicativo' 
+  | 'ferramenta' 
+  | 'oferta' 
+  | 'lancamento' 
+  | 'bonus' 
+  | 'evento' 
+  | 'aula_nova' 
+  | 'externo' 
+  | 'gratuito';
+
+export interface HeroBanner {
+  id: string;
+  title: string;
+  subtitle?: string; // e.g. "🔥 NOVO TREINAMENTO"
+  description: string;
+  buttonText: string;
+  buttonLink?: string;
+  targetType: BannerTargetType;
+  targetId?: string; // courseId, digitalProductId, lessonId, tab name
+  secondaryTargetId?: string; // lessonId when courseId is used
+  openInNewTab?: boolean;
+  
+  // Imagens & Mídias
+  backgroundImageUrl?: string;
+  mobileBackgroundImageUrl?: string;
+  productImageUrl?: string; // Mockup ou arte lateral direita
+  
+  // Relação com Áreas & Produtos
+  areaId: string; // 'global' | 'all' | específica areaId
+  category: BannerCategory;
+  order: number;
+  status: 'active' | 'inactive';
+  
+  // Agendamento
+  startDate?: string;
+  endDate?: string;
+  
+  // Customização Visual
+  overlayIntensity?: 'light' | 'medium' | 'dark' | 'cinematic'; // 30%, 50%, 75%, 90%
+  accentColor?: string; // Default #D4AF37
+  textAlignment?: 'left' | 'center';
+  
+  // Métricas
+  impressions: number;
+  clicks: number;
+  createdAt: string;
+  updatedAt: string;
+}
+

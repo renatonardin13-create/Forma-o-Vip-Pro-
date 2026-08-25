@@ -14,7 +14,8 @@ import {
   Matricula,
   ProdutoCursoMapping,
   WebhookLogRecord,
-  AulaProgressRecord
+  AulaProgressRecord,
+  HeroBanner
 } from '../types';
 import { 
   INITIAL_USER, 
@@ -31,7 +32,8 @@ import {
   INITIAL_WEBHOOK_LOGS,
   INITIAL_MEMBER_AREAS,
   INITIAL_DIGITAL_PRODUCTS,
-  INITIAL_USER_AREA_ACCESSES
+  INITIAL_USER_AREA_ACCESSES,
+  INITIAL_HERO_BANNERS
 } from '../data/mockData';
 import { MemberArea, DigitalProduct, UserAreaAccess } from '../types';
 
@@ -53,6 +55,7 @@ const STORAGE_KEYS = {
   MEMBER_AREAS: 'vip_pro_member_areas',
   DIGITAL_PRODUCTS: 'vip_pro_digital_products',
   USER_AREA_ACCESSES: 'vip_pro_user_area_accesses',
+  HERO_BANNERS: 'vip_pro_hero_banners',
 };
 
 // DOM synchronization helper for dynamic favicon and page title
@@ -125,6 +128,7 @@ class StoreManager {
   private memberAreas: MemberArea[];
   private digitalProducts: DigitalProduct[];
   private userAreaAccesses: UserAreaAccess[];
+  private heroBanners: HeroBanner[];
   private activeAreaSlug: string = 'formacao-vip';
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
@@ -140,6 +144,7 @@ class StoreManager {
     this.memberAreas = loadStorage<MemberArea[]>(STORAGE_KEYS.MEMBER_AREAS, INITIAL_MEMBER_AREAS);
     this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);
     this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
+    this.heroBanners = loadStorage<HeroBanner[]>(STORAGE_KEYS.HERO_BANNERS, INITIAL_HERO_BANNERS);
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
       [`${INITIAL_USER.id}_course-negocios-digitais`]: {
         courseId: 'course-negocios-digitais',
@@ -1317,6 +1322,98 @@ class StoreManager {
     this.notify();
     return true;
   }
+
+  public getHeroBanners(areaId?: string): HeroBanner[] {
+    if (!areaId || areaId === 'global' || areaId === 'all') {
+      return this.heroBanners;
+    }
+    return this.heroBanners.filter(b => b.areaId === 'global' || b.areaId === areaId || b.areaId === 'all');
+  }
+
+  public saveHeroBanner(bannerData: Partial<HeroBanner> & { title: string; areaId: string; category: any; targetType: any }): HeroBanner {
+    const isEditing = Boolean(bannerData.id);
+    let banner: HeroBanner;
+    if (isEditing) {
+      const idx = this.heroBanners.findIndex(b => b.id === bannerData.id);
+      if (idx !== -1) {
+        this.heroBanners[idx] = {
+          ...this.heroBanners[idx],
+          ...bannerData,
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+        banner = this.heroBanners[idx];
+      } else {
+        throw new Error('Banner não encontrado para edição.');
+      }
+    } else {
+      banner = {
+        id: `banner-${Date.now()}`,
+        title: bannerData.title,
+        subtitle: bannerData.subtitle || '',
+        description: bannerData.description || '',
+        buttonText: bannerData.buttonText || 'ACESSAR AGORA',
+        buttonLink: bannerData.buttonLink || '',
+        targetType: bannerData.targetType || 'course',
+        targetId: bannerData.targetId || '',
+        secondaryTargetId: bannerData.secondaryTargetId || '',
+        openInNewTab: bannerData.openInNewTab || false,
+        backgroundImageUrl: bannerData.backgroundImageUrl || 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1920&q=80',
+        mobileBackgroundImageUrl: bannerData.mobileBackgroundImageUrl || '',
+        productImageUrl: bannerData.productImageUrl || '',
+        areaId: bannerData.areaId || 'global',
+        category: bannerData.category || 'treinamento',
+        order: bannerData.order || this.heroBanners.length + 1,
+        status: bannerData.status || 'active',
+        startDate: bannerData.startDate || '',
+        endDate: bannerData.endDate || '',
+        overlayIntensity: bannerData.overlayIntensity || 'cinematic',
+        accentColor: bannerData.accentColor || '#D4AF37',
+        textAlignment: bannerData.textAlignment || 'left',
+        impressions: 0,
+        clicks: 0,
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
+      this.heroBanners.push(banner);
+    }
+    saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+    this.notify();
+    return banner;
+  }
+
+  public deleteHeroBanner(id: string): boolean {
+    this.heroBanners = this.heroBanners.filter(b => b.id !== id);
+    saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+    this.notify();
+    return true;
+  }
+
+  public toggleHeroBannerStatus(id: string): void {
+    const banner = this.heroBanners.find(b => b.id === id);
+    if (banner) {
+      banner.status = banner.status === 'active' ? 'inactive' : 'active';
+      banner.updatedAt = new Date().toISOString().split('T')[0];
+      saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+      this.notify();
+    }
+  }
+
+  public trackBannerImpression(id: string): void {
+    const banner = this.heroBanners.find(b => b.id === id);
+    if (banner) {
+      banner.impressions = (banner.impressions || 0) + 1;
+      saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+    }
+  }
+
+  public trackBannerClick(id: string): void {
+    const banner = this.heroBanners.find(b => b.id === id);
+    if (banner) {
+      banner.clicks = (banner.clicks || 0) + 1;
+      saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+      this.notify();
+    }
+  }
 }
 
 export const store = new StoreManager();
@@ -1412,6 +1509,12 @@ export function useStore() {
     resetLoginConfig: () => store.resetLoginConfig(),
     updateBranding: (config: Partial<BrandingConfig>) => store.updateBrandingConfig(config),
     resetBranding: () => store.resetBrandingConfig(),
+    getHeroBanners: (areaId?: string) => store.getHeroBanners(areaId),
+    saveHeroBanner: (banner: any) => store.saveHeroBanner(banner),
+    deleteHeroBanner: (id: string) => store.deleteHeroBanner(id),
+    toggleHeroBannerStatus: (id: string) => store.toggleHeroBannerStatus(id),
+    trackBannerImpression: (id: string) => store.trackBannerImpression(id),
+    trackBannerClick: (id: string) => store.trackBannerClick(id),
     adminTab: store.getAdminTab(),
     setAdminTab: (tab: string) => store.setAdminTab(tab),
   };

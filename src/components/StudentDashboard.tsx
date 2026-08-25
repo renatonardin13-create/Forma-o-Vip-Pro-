@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { Course } from '../types';
+import { HeroCarousel } from './HeroCarousel';
 
 interface StudentDashboardProps {
   onOpenCourse: (courseId: string) => void;
@@ -34,8 +35,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
     certificates, 
     getCourseProgress, 
     isFavorite, 
-    toggleFavorite 
+    toggleFavorite,
+    getHeroBanners,
+    activeAreaSlug,
+    trackBannerImpression,
+    trackBannerClick
   } = useStore();
+
+  const heroBanners = getHeroBanners(activeAreaSlug);
 
   // Find most relevant in-progress course
   const inProgressCourses = courses.map(course => {
@@ -74,6 +81,22 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
 
   return (
     <div id="student-dashboard" className="p-4 lg:p-8 space-y-8 max-w-7xl mx-auto">
+      {/* HERO CAROUSEL PREMIUM */}
+      <HeroCarousel 
+        banners={heroBanners}
+        onBannerClick={(banner) => {
+          if (banner.targetType === 'course' && banner.targetId) {
+            onOpenCourse(banner.targetId);
+          } else if (banner.targetType === 'lesson' && banner.targetId && banner.secondaryTargetId) {
+            onOpenLesson(banner.secondaryTargetId, banner.targetId);
+          } else if (['app', 'ebook', 'digital_product', 'offer'].includes(banner.targetType)) {
+            onNavigateTab(banner.targetType);
+          }
+        }}
+        onTrackImpression={(id) => trackBannerImpression(id)}
+        onTrackClick={(id) => trackBannerClick(id)}
+      />
+
       {/* 1. Welcome & Greeting Banner */}
       <div className="relative overflow-hidden rounded-3xl bg-gradient-to-r from-[#151922] via-[#0D0F12] to-[#151922] border border-[#1D2230] p-6 lg:p-8 shadow-card-dark">
         <div className="absolute right-0 top-0 bottom-0 w-96 bg-gradient-to-l from-[#D4AF37]/10 via-[#D4AF37]/5 to-transparent pointer-events-none" />
