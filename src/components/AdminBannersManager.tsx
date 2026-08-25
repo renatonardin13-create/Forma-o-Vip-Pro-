@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { HeroBanner, BannerCategory } from '../types';
+import { BannerImageUploader } from './BannerImageUploader';
 
 export const AdminBannersManager: React.FC = () => {
   const { 
@@ -372,26 +373,22 @@ export const AdminBannersManager: React.FC = () => {
                 </div>
               </div>
 
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-[#A7AFBF] uppercase mb-1">URL Imagem Desktop</label>
-                  <input
-                    type="text"
-                    value={editingBanner.desktopImage || ''}
-                    onChange={e => setEditingBanner({ ...editingBanner, desktopImage: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-white text-sm focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </div>
+              <div className="space-y-4">
+                <BannerImageUploader
+                  label="Imagem Principal do Banner (Desktop)"
+                  value={editingBanner.desktopImage || ''}
+                  onChange={(url) => setEditingBanner({ ...editingBanner, desktopImage: url })}
+                  recommendedSize="1920 × 700 px"
+                  maxSizeMB={10}
+                />
 
-                <div>
-                  <label className="block text-xs font-bold text-[#A7AFBF] uppercase mb-1">URL Imagem Produto / Mockup (Direita)</label>
-                  <input
-                    type="text"
-                    value={editingBanner.productImage || ''}
-                    onChange={e => setEditingBanner({ ...editingBanner, productImage: e.target.value })}
-                    className="w-full px-4 py-2.5 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-white text-sm focus:border-[#D4AF37] focus:outline-none"
-                  />
-                </div>
+                <BannerImageUploader
+                  label="Imagem do Produto / Mockup (Opcional - Lado Direito)"
+                  value={editingBanner.productImage || ''}
+                  onChange={(url) => setEditingBanner({ ...editingBanner, productImage: url })}
+                  recommendedSize="800 × 800 px (Fundo Transparente)"
+                  maxSizeMB={10}
+                />
               </div>
 
               <div className="flex items-center justify-end gap-3 pt-4 border-t border-[#1D2230]">
