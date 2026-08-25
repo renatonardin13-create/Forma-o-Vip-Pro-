@@ -44,6 +44,16 @@ export default function App() {
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
+  // Admin Layout State
+  const [mobileAdminSidebarOpen, setMobileAdminSidebarOpen] = useState(false);
+  const [isAdminCollapsed, setIsAdminCollapsed] = useState<boolean>(() => {
+    return localStorage.getItem('vip_admin_sidebar_collapsed') === 'true';
+  });
+
+  useEffect(() => {
+    localStorage.setItem('vip_admin_sidebar_collapsed', String(isAdminCollapsed));
+  }, [isAdminCollapsed]);
+
   // Sync URL changes (popstate)
   useEffect(() => {
     const handlePopState = () => {
@@ -125,16 +135,6 @@ export default function App() {
         />
       );
     }
-
-    // Admin Layout State
-    const [mobileAdminSidebarOpen, setMobileAdminSidebarOpen] = useState(false);
-    const [isAdminCollapsed, setIsAdminCollapsed] = useState<boolean>(() => {
-      return localStorage.getItem('vip_admin_sidebar_collapsed') === 'true';
-    });
-
-    useEffect(() => {
-      localStorage.setItem('vip_admin_sidebar_collapsed', String(isAdminCollapsed));
-    }, [isAdminCollapsed]);
 
     // Admin Layout with fixed left sidebar and responsive content
     return (
