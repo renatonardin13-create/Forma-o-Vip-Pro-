@@ -21,7 +21,13 @@ import {
   Award, 
   Sparkles,
   ShieldCheck,
-  GraduationCap
+  GraduationCap,
+  Webhook,
+  Mail,
+  Copy,
+  Target,
+  Video,
+  CreditCard
 } from 'lucide-react';
 import { useStore } from '../services/store';
 
@@ -266,8 +272,34 @@ export const Sidebar: React.FC<SidebarProps> = ({
                       : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
                   }`}
                 >
-                  <Palette className={`w-4 h-4 flex-shrink-0 ${adminTab === 'login_customizer' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <LayoutGrid className={`w-4 h-4 flex-shrink-0 ${adminTab === 'login_customizer' ? 'text-black' : 'text-[#8E9BB0]'}`} />
                   <span>Tela de Login</span>
+                </button>
+
+                <button
+                  id="admin-nav-webhooks"
+                  onClick={() => handleSelectAdminSubTab('webhooks')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'webhooks'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Webhook className={`w-4 h-4 flex-shrink-0 ${adminTab === 'webhooks' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Webhooks</span>
+                </button>
+
+                <button
+                  id="admin-nav-templates"
+                  onClick={() => handleSelectAdminSubTab('templates')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'templates'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Mail className={`w-4 h-4 flex-shrink-0 ${adminTab === 'templates' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Templates</span>
                 </button>
 
                 <button
@@ -289,6 +321,71 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
                   FERRAMENTAS
                 </div>
+
+                <button
+                  id="admin-nav-quiz"
+                  onClick={() => handleSelectAdminSubTab('quiz_builder')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'quiz_builder'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <HelpCircle className={`w-4 h-4 flex-shrink-0 ${adminTab === 'quiz_builder' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Criar Quiz</span>
+                </button>
+
+                <button
+                  id="admin-nav-clone-sites"
+                  onClick={() => handleSelectAdminSubTab('clone_sites')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'clone_sites'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Copy className={`w-4 h-4 flex-shrink-0 ${adminTab === 'clone_sites' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Criar e Clonar Sites</span>
+                </button>
+
+                <button
+                  id="admin-nav-spy-offers"
+                  onClick={() => handleSelectAdminSubTab('spy_offers')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'spy_offers'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Target className={`w-4 h-4 flex-shrink-0 ${adminTab === 'spy_offers' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Espionar Ofertas</span>
+                </button>
+
+                <button
+                  id="admin-nav-video-hosting"
+                  onClick={() => handleSelectAdminSubTab('video_hosting')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'video_hosting'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Video className={`w-4 h-4 flex-shrink-0 ${adminTab === 'video_hosting' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Hospedar Vídeos</span>
+                </button>
+
+                <button
+                  id="admin-nav-perfect-pay"
+                  onClick={() => handleSelectAdminSubTab('perfect_pay')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'perfect_pay'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <CreditCard className={`w-4 h-4 flex-shrink-0 ${adminTab === 'perfect_pay' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Cadastrar na Perfect Pay</span>
+                </button>
 
                 <button
                   id="admin-nav-support"

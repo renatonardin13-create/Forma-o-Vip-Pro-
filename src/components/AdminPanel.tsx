@@ -29,12 +29,26 @@ import {
   Upload,
   Lock,
   Unlock,
-  CheckCircle2
+  CheckCircle2,
+  Webhook,
+  Mail,
+  Copy,
+  Target,
+  CreditCard,
+  HelpCircle,
+  LayoutGrid
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { Course, Module, Lesson, Material, User, LoginCustomization, VideoType } from '../types';
 import { AdminUserDashboard } from './AdminUserDashboard';
 import { BrandingCustomizer } from './BrandingCustomizer';
+import { WebhooksManager } from './tools/WebhooksManager';
+import { EmailTemplatesManager } from './tools/EmailTemplatesManager';
+import { QuizBuilder } from './tools/QuizBuilder';
+import { SiteClonerBuilder } from './tools/SiteClonerBuilder';
+import { SpyOffersManager } from './tools/SpyOffersManager';
+import { VideoHostingManager } from './tools/VideoHostingManager';
+import { PerfectPayIntegration } from './tools/PerfectPayIntegration';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -60,7 +74,7 @@ export const AdminPanel: React.FC = () => {
     setAdminTab
   } = useStore();
 
-  const activeAdminTab = (adminTab as 'dashboard' | 'users' | 'branding' | 'courses' | 'modules_lessons' | 'materials' | 'categories' | 'login_customizer') || 'dashboard';
+  const activeAdminTab = adminTab || 'dashboard';
   const setActiveAdminTab = (tab: string) => setAdminTab(tab);
 
   // Selected course for module/lesson editing
@@ -200,12 +214,19 @@ export const AdminPanel: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1D2230] pb-2 custom-scrollbar">
         {[
           { id: 'dashboard', label: 'DASHBOARD', icon: BarChart3 },
-          { id: 'users', label: 'USUÁRIOS & DASHBOARD VIP', icon: Users },
+          { id: 'users', label: 'USUÁRIOS', icon: Users },
+          { id: 'courses', label: 'ÁREAS DE MEMBROS', icon: Layers },
+          { id: 'modules_lessons', label: 'CADASTRAR PRODUTO', icon: PlaySquare },
+          { id: 'materials', label: 'OFERTA & ARQUIVOS', icon: FileText },
+          { id: 'login_customizer', label: 'TELA DE LOGIN', icon: LayoutGrid },
+          { id: 'webhooks', label: 'WEBHOOKS', icon: Webhook },
+          { id: 'templates', label: 'TEMPLATES', icon: Mail },
           { id: 'branding', label: 'LOGO & FAVICON', icon: Crown },
-          { id: 'courses', label: 'CURSOS & FORMAÇÕES', icon: BookOpen },
-          { id: 'modules_lessons', label: 'MÓDULOS & AULAS', icon: PlaySquare },
-          { id: 'materials', label: 'MATERIAIS & ARQUIVOS', icon: FileText },
-          { id: 'login_customizer', label: 'TELA DE LOGIN (PERSONALIZAÇÃO)', icon: Palette },
+          { id: 'quiz_builder', label: 'CRIAR QUIZ', icon: HelpCircle },
+          { id: 'clone_sites', label: 'CRIAR E CLONAR SITES', icon: Copy },
+          { id: 'spy_offers', label: 'ESPIONAR OFERTAS', icon: Target },
+          { id: 'video_hosting', label: 'HOSPEDAR VÍDEOS', icon: Video },
+          { id: 'perfect_pay', label: 'CADASTRAR NA PERFECT PAY', icon: CreditCard },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeAdminTab === tab.id;
@@ -945,6 +966,41 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB: WEBHOOKS */}
+      {activeAdminTab === 'webhooks' && (
+        <WebhooksManager />
+      )}
+
+      {/* TAB: EMAIL TEMPLATES */}
+      {activeAdminTab === 'templates' && (
+        <EmailTemplatesManager />
+      )}
+
+      {/* TAB: QUIZ BUILDER */}
+      {activeAdminTab === 'quiz_builder' && (
+        <QuizBuilder />
+      )}
+
+      {/* TAB: CLONE SITES */}
+      {activeAdminTab === 'clone_sites' && (
+        <SiteClonerBuilder />
+      )}
+
+      {/* TAB: SPY OFFERS */}
+      {activeAdminTab === 'spy_offers' && (
+        <SpyOffersManager />
+      )}
+
+      {/* TAB: VIDEO HOSTING */}
+      {activeAdminTab === 'video_hosting' && (
+        <VideoHostingManager />
+      )}
+
+      {/* TAB: PERFECT PAY */}
+      {activeAdminTab === 'perfect_pay' && (
+        <PerfectPayIntegration />
       )}
 
       {/* Modal: Create/Edit Course */}
