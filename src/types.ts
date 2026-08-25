@@ -43,9 +43,22 @@ export interface Lesson {
   duration: string; // e.g. "18:45"
   videoType: VideoType;
   videoUrl: string;
+  youtube_video_id?: string;
   thumbnailUrl: string;
   description: string;
   materials: Material[];
+}
+
+export interface AulaProgressRecord {
+  id?: string;
+  user_id: string;
+  aula_id: string;
+  course_id?: string;
+  percentual_assistido: number;
+  segundos_assistidos: number;
+  duracao_total: number;
+  concluido: boolean;
+  updated_at: string;
 }
 
 export interface Module {

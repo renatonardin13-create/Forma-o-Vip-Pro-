@@ -185,8 +185,9 @@ export const INITIAL_COURSES: Course[] = [
             title: 'Aula 01: O Mindset dos Negócios de Alta Performance',
             order: 1,
             duration: '18:30',
-            videoType: 'mp4',
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4',
+            videoType: 'youtube',
+            youtube_video_id: 'LXb3EKWsInQ',
+            videoUrl: 'https://www.youtube.com/watch?v=LXb3EKWsInQ',
             thumbnailUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=600&q=80',
             description: 'Nesta aula de abertura, detalhamos como estruturar seu modelo de pensamento e tomada de decisão estratégica nos primeiros ciclos de aceleração da sua empresa.',
             materials: [
@@ -215,8 +216,9 @@ export const INITIAL_COURSES: Course[] = [
             title: 'Aula 02: Arquitetura de Ofertas Irresistíveis e High-Ticket',
             order: 2,
             duration: '24:15',
-            videoType: 'mp4',
-            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4',
+            videoType: 'youtube',
+            youtube_video_id: 'L_LUpnjgPso',
+            videoUrl: 'https://www.youtube.com/watch?v=L_LUpnjgPso',
             thumbnailUrl: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=600&q=80',
             description: 'Como desenhar esteiras de produtos onde a aquisição inicial paga o tráfego e o back-end gera margem de lucro líquida pura.',
             materials: [

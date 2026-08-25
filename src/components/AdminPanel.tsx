@@ -49,7 +49,7 @@ import { SiteClonerBuilder } from './tools/SiteClonerBuilder';
 import { SpyOffersManager } from './tools/SpyOffersManager';
 import { VideoHostingManager } from './tools/VideoHostingManager';
 import { PerfectPayIntegration } from './tools/PerfectPayIntegration';
-import { getYouTubeBackgroundEmbedUrl } from '../utils/videoHelpers';
+import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -1249,16 +1249,47 @@ export const AdminPanel: React.FC = () => {
               </div>
 
               <div className="space-y-1">
-                <label className="text-xs font-semibold text-[#A7AFBF]">URL do Vídeo</label>
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#A7AFBF]">
+                    {editingLesson?.videoType === 'youtube' ? 'YouTube URL ou ID do Vídeo' : 'URL do Vídeo'}
+                  </label>
+                  {editingLesson?.videoType === 'youtube' && (
+                    <span className="text-[10px] text-[#D4AF37] font-mono font-bold">
+                      ✓ Player Disfarçado Ativo
+                    </span>
+                  )}
+                </div>
                 <input
-                  type="url"
+                  type="text"
                   required
                   value={editingLesson?.videoUrl || ''}
-                  onChange={(e) => setEditingLesson(prev => ({ ...prev, videoUrl: e.target.value }))}
-                  placeholder="https://www.youtube.com/watch?v=..."
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    const extractedId = extractYouTubeId(val);
+                    setEditingLesson(prev => ({ 
+                      ...prev, 
+                      videoUrl: val,
+                      youtube_video_id: extractedId || prev?.youtube_video_id
+                    }));
+                  }}
+                  placeholder={editingLesson?.videoType === 'youtube' ? 'Ex: https://www.youtube.com/watch?v=dQw4w9WgXcQ ou dQw4w9WgXcQ' : 'https://...'}
                   className="w-full h-10 px-3 rounded-xl bg-[#151922] border border-[#1D2230] text-xs text-white focus:outline-none focus:border-[#D4AF37]"
                 />
               </div>
+
+              {editingLesson?.videoType === 'youtube' && (
+                <div className="p-3 rounded-xl bg-[#0D0F12] border border-[#1D2230] space-y-1">
+                  <div className="flex items-center justify-between text-[11px] font-mono text-[#A7AFBF]">
+                    <span>ID Extraído do YouTube:</span>
+                    <span className="text-[#D4AF37] font-bold">
+                      {extractYouTubeId(editingLesson?.videoUrl || '') || editingLesson?.youtube_video_id || 'Nenhum ID detectado'}
+                    </span>
+                  </div>
+                  <p className="text-[10px] text-[#A7AFBF]/70">
+                    O player embutirá este vídeo via YouTube IFrame API com domínio nocookie e controles customizados sem a identidade visual do YouTube.
+                  </p>
+                </div>
+              )}
 
               <div className="space-y-1">
                 <label className="text-xs font-semibold text-[#A7AFBF]">Descrição Detalhada da Aula</label>

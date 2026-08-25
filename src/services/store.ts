@@ -13,7 +13,8 @@ import {
   BrandingConfig,
   Matricula,
   ProdutoCursoMapping,
-  WebhookLogRecord
+  WebhookLogRecord,
+  AulaProgressRecord
 } from '../types';
 import { 
   INITIAL_USER, 
@@ -44,6 +45,7 @@ const STORAGE_KEYS = {
   MATRICULAS: 'vip_pro_matriculas',
   PRODUTOS_CURSOS: 'vip_pro_produtos_cursos',
   WEBHOOK_LOGS: 'vip_pro_webhook_logs',
+  PROGRESSO_AULAS: 'vip_pro_progresso_aulas',
 };
 
 // DOM synchronization helper for dynamic favicon and page title
@@ -112,6 +114,7 @@ class StoreManager {
   private matriculas: Matricula[];
   private produtosCursos: ProdutoCursoMapping[];
   private webhookLogs: WebhookLogRecord[];
+  private progressoAulas: Record<string, AulaProgressRecord>; // key: `${userId}_${lessonId}`
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
 
@@ -122,6 +125,7 @@ class StoreManager {
     this.matriculas = loadStorage<Matricula[]>(STORAGE_KEYS.MATRICULAS, INITIAL_MATRICULAS);
     this.produtosCursos = loadStorage<ProdutoCursoMapping[]>(STORAGE_KEYS.PRODUTOS_CURSOS, INITIAL_PRODUTOS_CURSOS);
     this.webhookLogs = loadStorage<WebhookLogRecord[]>(STORAGE_KEYS.WEBHOOK_LOGS, INITIAL_WEBHOOK_LOGS);
+    this.progressoAulas = loadStorage<Record<string, AulaProgressRecord>>(STORAGE_KEYS.PROGRESSO_AULAS, {});
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
       [`${INITIAL_USER.id}_course-negocios-digitais`]: {
         courseId: 'course-negocios-digitais',
@@ -384,6 +388,44 @@ class StoreManager {
     this.progress[key] = { ...existing };
     saveStorage(STORAGE_KEYS.PROGRESS, this.progress);
     this.notify();
+  }
+
+  public saveAulaProgress(
+    lessonId: string, 
+    courseId: string, 
+    percentual: number, 
+    segundos: number, 
+    duracao: number,
+    forceCompleted?: boolean
+  ): void {
+    if (!this.currentUser) return;
+    const userKey = `${this.currentUser.id}_${lessonId}`;
+    const isCompleted = forceCompleted || percentual >= 90;
+    
+    const record: AulaProgressRecord = {
+      user_id: this.currentUser.id,
+      aula_id: lessonId,
+      course_id: courseId,
+      percentual_assistido: Math.min(100, Math.max(0, Math.round(percentual))),
+      segundos_assistidos: Math.round(segundos),
+      duracao_total: Math.round(duracao),
+      concluido: isCompleted,
+      updated_at: new Date().toISOString()
+    };
+
+    this.progressoAulas[userKey] = record;
+    saveStorage(STORAGE_KEYS.PROGRESSO_AULAS, this.progressoAulas);
+
+    // If completed, ensure standard lesson completion is marked
+    if (isCompleted) {
+      this.markLessonCompleted(courseId, lessonId);
+    }
+  }
+
+  public getAulaProgress(lessonId: string): AulaProgressRecord | null {
+    if (!this.currentUser) return null;
+    const userKey = `${this.currentUser.id}_${lessonId}`;
+    return this.progressoAulas[userKey] || null;
   }
 
   public saveLessonNote(courseId: string, lessonId: string, noteText: string): void {
@@ -958,6 +1000,9 @@ export function useStore() {
     switchDemoAccount: (type: 'student' | 'admin') => store.switchDemoAccount(type),
     updateProfile: (data: Partial<User>) => store.updateProfile(data),
     getCourseProgress: (courseId: string) => store.getCourseProgress(courseId),
+    saveAulaProgress: (lessonId: string, courseId: string, percentual: number, segundos: number, duracao: number, forceCompleted?: boolean) => 
+      store.saveAulaProgress(lessonId, courseId, percentual, segundos, duracao, forceCompleted),
+    getAulaProgress: (lessonId: string) => store.getAulaProgress(lessonId),
     markLessonCompleted: (courseId: string, lessonId: string) => store.markLessonCompleted(courseId, lessonId),
     unmarkLessonCompleted: (courseId: string, lessonId: string) => store.unmarkLessonCompleted(courseId, lessonId),
     recordLastAccessedLesson: (courseId: string, lessonId: string) => store.recordLastAccessedLesson(courseId, lessonId),

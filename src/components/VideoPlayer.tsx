@@ -23,6 +23,7 @@ import {
 import { useStore } from '../services/store';
 import { Course, Lesson, Material } from '../types';
 import { CleanCustomPlayer } from './CleanCustomPlayer';
+import { DisguisedYouTubePlayer } from './DisguisedYouTubePlayer';
 
 interface VideoPlayerProps {
   courseId: string;
@@ -190,9 +191,28 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Player + Controls + Tabs */}
         <div className="lg:col-span-8 space-y-5">
-          {/* Responsive Video Container - Clean VIP Custom Player */}
+          {/* Responsive Video Container - Disguised YouTube VIP Player & Clean MP4 */}
           <div className="relative rounded-2xl overflow-hidden bg-black border border-[#1D2230] shadow-2xl aspect-video flex items-center justify-center">
-            {currentLesson.videoType === 'mp4' || !currentLesson.videoUrl.includes('youtube.com') && !currentLesson.videoUrl.includes('youtu.be') && !currentLesson.videoUrl.includes('vimeo.com') ? (
+            {currentLesson.videoType === 'youtube' || currentLesson.youtube_video_id || currentLesson.videoUrl.includes('youtube.com') || currentLesson.videoUrl.includes('youtu.be') ? (
+              <DisguisedYouTubePlayer
+                key={currentLesson.id}
+                youtube_video_id={currentLesson.youtube_video_id}
+                videoUrl={currentLesson.videoUrl}
+                lessonId={currentLesson.id}
+                courseId={course.id}
+                title={currentLesson.title}
+                posterUrl={currentLesson.thumbnailUrl}
+                onEnded={() => {
+                  markLessonCompleted(course.id, currentLesson.id);
+                  if (nextItem) {
+                    onSelectLesson(course.id, nextItem.lesson.id);
+                  }
+                }}
+                onCompleted={() => {
+                  markLessonCompleted(course.id, currentLesson.id);
+                }}
+              />
+            ) : currentLesson.videoType === 'mp4' || (!currentLesson.videoUrl.includes('vimeo.com') && currentLesson.videoUrl.endsWith('.mp4')) ? (
               <CleanCustomPlayer
                 key={currentLesson.id}
                 videoUrl={currentLesson.videoUrl}
