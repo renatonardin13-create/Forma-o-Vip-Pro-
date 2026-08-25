@@ -209,6 +209,32 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   <Users className={`w-4 h-4 flex-shrink-0 ${adminTab === 'users' ? 'text-black' : 'text-[#8E9BB0]'}`} />
                   <span>Usuários</span>
                 </button>
+
+                <button
+                  id="admin-nav-sales"
+                  onClick={() => handleSelectAdminSubTab('sales')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'sales'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <CreditCard className={`w-4 h-4 flex-shrink-0 ${adminTab === 'sales' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Vendas</span>
+                </button>
+
+                <button
+                  id="admin-nav-access"
+                  onClick={() => handleSelectAdminSubTab('user_access')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'user_access'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <ShieldCheck className={`w-4 h-4 flex-shrink-0 ${adminTab === 'user_access' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Acessos</span>
+                </button>
               </div>
 
               {/* SECTION: CONTEÚDO */}

@@ -12,7 +12,8 @@ import {
   MemberArea,
   DigitalProduct,
   UserAreaAccess,
-  HeroBanner
+  HeroBanner,
+  SalesTransaction
 } from '../types';
 
 export const INITIAL_BRANDING: BrandingConfig = {
@@ -1479,6 +1480,41 @@ export const INITIAL_HERO_BANNERS: HeroBanner[] = [
       autoplay: true,
       ctaColor: '#D4AF37'
     }
+  }
+];
+
+export const INITIAL_SALES_TRANSACTIONS: SalesTransaction[] = [
+  {
+    id: 'tx_101',
+    transactionId: 'kiwify_txn_99812374',
+    productId: 'prod-negocios-digitais',
+    productName: 'Negócios Digitais de Alta Escala',
+    userId: 'usr_renato_01',
+    customerName: 'Renato Nardin',
+    customerEmail: 'renatonardin13@gmail.com',
+    amount: 997.00,
+    currency: 'BRL',
+    status: 'approved',
+    provider: 'kiwify',
+    origin: 'checkout_direto',
+    createdAt: '2026-02-15 14:20:10',
+    updatedAt: '2026-02-15 14:20:10'
+  },
+  {
+    id: 'tx_102',
+    transactionId: 'pp_txn_88419203',
+    productId: 'prod-ia-produtividade',
+    productName: 'Inteligência Artificial & Automação Avançada',
+    userId: 'usr_camila_02',
+    customerName: 'Dra. Camila Alcantara',
+    customerEmail: 'camila.alcantara@medinvest.com',
+    amount: 497.00,
+    currency: 'BRL',
+    status: 'approved',
+    provider: 'perfectpay',
+    origin: 'checkout_direto',
+    createdAt: '2026-02-18 09:12:45',
+    updatedAt: '2026-02-18 09:12:45'
   }
 ];
 

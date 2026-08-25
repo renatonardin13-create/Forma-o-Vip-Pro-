@@ -325,6 +325,28 @@ export interface DigitalProduct {
   featured?: boolean;
   badge?: string;
   accessLevel?: 'free' | 'vip' | 'restricted';
+  price?: number;
+  salesPageUrl?: string;
+  checkoutUrl?: string;
+  autoLiberarAposCompra?: boolean;
+}
+
+export interface SalesTransaction {
+  id: string;
+  transactionId: string; // Idempotency key
+  productId: string;
+  productName: string;
+  userId: string;
+  customerName: string;
+  customerEmail: string;
+  amount: number;
+  currency: string;
+  status: 'approved' | 'pending' | 'cancelled' | 'refunded' | 'chargeback' | 'expired';
+  provider: string; // 'hotmart', 'kiwify', 'perfectpay', 'stripe', 'manual'
+  origin: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt?: string; // Para acesso temporário
 }
 
 export interface UserAreaAccess {

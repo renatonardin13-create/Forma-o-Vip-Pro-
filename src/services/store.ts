@@ -15,7 +15,8 @@ import {
   ProdutoCursoMapping,
   WebhookLogRecord,
   AulaProgressRecord,
-  HeroBanner
+  HeroBanner,
+  SalesTransaction
 } from '../types';
 import { 
   INITIAL_USER, 
@@ -33,7 +34,8 @@ import {
   INITIAL_MEMBER_AREAS,
   INITIAL_DIGITAL_PRODUCTS,
   INITIAL_USER_AREA_ACCESSES,
-  INITIAL_HERO_BANNERS
+  INITIAL_HERO_BANNERS,
+  INITIAL_SALES_TRANSACTIONS
 } from '../data/mockData';
 import { MemberArea, DigitalProduct, UserAreaAccess } from '../types';
 
@@ -56,6 +58,7 @@ const STORAGE_KEYS = {
   DIGITAL_PRODUCTS: 'vip_pro_digital_products',
   USER_AREA_ACCESSES: 'vip_pro_user_area_accesses',
   HERO_BANNERS: 'vip_pro_hero_banners',
+  SALES_TRANSACTIONS: 'vip_pro_sales_transactions',
 };
 
 // DOM synchronization helper for dynamic favicon and page title
@@ -129,6 +132,7 @@ class StoreManager {
   private digitalProducts: DigitalProduct[];
   private userAreaAccesses: UserAreaAccess[];
   private heroBanners: HeroBanner[];
+  private salesTransactions: SalesTransaction[];
   private activeAreaSlug: string = 'formacao-vip';
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
@@ -145,6 +149,7 @@ class StoreManager {
     this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);
     this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
     this.heroBanners = loadStorage<HeroBanner[]>(STORAGE_KEYS.HERO_BANNERS, INITIAL_HERO_BANNERS);
+    this.salesTransactions = loadStorage<SalesTransaction[]>(STORAGE_KEYS.SALES_TRANSACTIONS, INITIAL_SALES_TRANSACTIONS);
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
       [`${INITIAL_USER.id}_course-negocios-digitais`]: {
         courseId: 'course-negocios-digitais',
@@ -209,6 +214,19 @@ class StoreManager {
   public getCertificates(): Certificate[] {
     if (!this.currentUser) return [];
     return this.certificates.filter(c => c.userId === this.currentUser?.id);
+  }
+
+  public getSalesTransactions(): SalesTransaction[] {
+    return this.salesTransactions;
+  }
+
+  public addSalesTransaction(tx: SalesTransaction): void {
+    const exists = this.salesTransactions.some(t => t.transactionId === tx.transactionId);
+    if (!exists) {
+      this.salesTransactions.unshift(tx);
+      saveStorage(STORAGE_KEYS.SALES_TRANSACTIONS, this.salesTransactions);
+      this.notify();
+    }
   }
 
   public getAllCertificates(): Certificate[] {
@@ -1450,6 +1468,8 @@ export function useStore() {
     webhookLogs: store.getWebhookLogs(),
     memberAreas: store.getMemberAreas(),
     digitalProducts: store.getDigitalProducts(),
+    salesTransactions: store.getSalesTransactions(),
+    addSalesTransaction: (tx: SalesTransaction) => store.addSalesTransaction(tx),
     userAreaAccesses: store.getUserAreaAccesses(),
     activeAreaSlug: store.getActiveAreaSlug(),
     setActiveAreaSlug: (slug: string) => store.setActiveAreaSlug(slug),

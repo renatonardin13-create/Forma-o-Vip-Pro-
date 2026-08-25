@@ -54,6 +54,7 @@ import { DigitalProductsManager } from './DigitalProductsManager';
 import { UserAccessManager } from './UserAccessManager';
 import { AdminBannersManager } from './AdminBannersManager';
 import { AdminBannerStats } from './AdminBannerStats';
+import { AdminSalesManager } from './AdminSalesManager';
 import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
@@ -342,6 +343,11 @@ export const AdminPanel: React.FC = () => {
       {/* TAB: CONTROLE DE ACESSOS (MÓDULO 30) */}
       {activeAdminTab === 'user_access' && (
         <UserAccessManager />
+      )}
+
+      {/* TAB: GESTÃO DE VENDAS & WEBHOOKS */}
+      {activeAdminTab === 'sales' && (
+        <AdminSalesManager />
       )}
 
       {/* TAB 2: USUÁRIOS & ALUNOS (DASHBOARD PREMIUM) */}
