@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useStore } from './services/store';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
@@ -13,23 +13,148 @@ import { CommunityView } from './components/CommunityView';
 import { SupportView } from './components/SupportView';
 import { AdminPanel } from './components/AdminPanel';
 import { LoginScreen } from './components/LoginScreen';
+import { AreaLoginScreen } from './components/AreaLoginScreen';
+import { MemberAreaView } from './components/MemberAreaView';
+import { AccessDeniedScreen } from './components/AccessDeniedScreen';
 import { UserProfileModal } from './components/UserProfileModal';
 import { FirstLoginPasswordModal } from './components/FirstLoginPasswordModal';
 
 export default function App() {
-  const { currentUser, logout } = useStore();
+  const { 
+    currentUser, 
+    login,
+    logout, 
+    memberAreas, 
+    checkUserAreaAccess 
+  } = useStore();
   
-  // Navigation state
+  // URL routing state
+  const [currentPath, setCurrentPath] = useState<string>(() => {
+    return window.location.pathname.replace(/^\/+|\/+$/g, '');
+  });
+
+  // Navigation state for Student Portal
   const [currentView, setCurrentView] = useState<string>('dashboard');
   const [activeCourseId, setActiveCourseId] = useState<string | null>(null);
   const [activeLessonId, setActiveLessonId] = useState<string | null>(null);
 
   // Layout UI state
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [mobileSidebarOpen, setMobileSidebarOpen] = useState(false);
   const [showProfileModal, setShowProfileModal] = useState(false);
 
-  // If user is not logged in, show cinematic Login Screen
+  // Sync URL changes (popstate)
+  useEffect(() => {
+    const handlePopState = () => {
+      const path = window.location.pathname.replace(/^\/+|\/+$/g, '');
+      setCurrentPath(path);
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, []);
+
+  const navigateToRoute = (path: string) => {
+    const cleanPath = path.replace(/^\/+|\/+$/g, '');
+    window.history.pushState({}, '', `/${cleanPath}`);
+    setCurrentPath(cleanPath);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
+  // Determine if URL matches a Member Area slug (e.g. /formacao-vip, /ebooks, /aplicativos)
+  const isSystemRoute = currentPath === '' || currentPath === 'aluno' || currentPath === 'admin';
+  const matchedArea = !isSystemRoute ? memberAreas.find(a => a.slug.toLowerCase() === currentPath.toLowerCase()) : null;
+
+  // 1. ROUTE: DEDICATED MEMBER AREA (/{slug})
+  if (matchedArea) {
+    // If not logged in, render area-specific custom Login screen
+    if (!currentUser) {
+      return (
+        <AreaLoginScreen
+          area={matchedArea}
+          onLogin={(email, pass) => login(email, pass)}
+          onSwitchDemo={(role) => {
+            if (role === 'student') login('aluno@vip.com');
+            else login('admin@formacaovip.com');
+          }}
+          onGoToGeneralStudentArea={() => navigateToRoute('aluno')}
+        />
+      );
+    }
+
+    // If logged in, check permission for this area
+    const hasAccess = currentUser.role === 'admin' || checkUserAreaAccess(currentUser.id, matchedArea.id);
+
+    if (!hasAccess) {
+      return (
+        <AccessDeniedScreen
+          area={matchedArea}
+          currentUser={currentUser}
+          onGoBack={() => navigateToRoute('aluno')}
+          onLogout={logout}
+        />
+      );
+    }
+
+    // User has access -> render dedicated catalog view
+    return (
+      <MemberAreaView
+        area={matchedArea}
+        onSelectCourse={(courseId) => {
+          setActiveCourseId(courseId);
+          setCurrentView('course-detail');
+          navigateToRoute('aluno');
+        }}
+        onSwitchArea={(slug) => navigateToRoute(slug)}
+        onGoToAdmin={() => navigateToRoute('admin')}
+        onGoToGeneralStudentArea={() => navigateToRoute('aluno')}
+        onLogout={logout}
+      />
+    );
+  }
+
+  // 2. ROUTE: ADMIN PANEL (/admin)
+  if (currentPath === 'admin') {
+    if (!currentUser) {
+      return (
+        <LoginScreen 
+          onLoginSuccess={() => {
+            navigateToRoute('admin');
+          }} 
+        />
+      );
+    }
+
+    // Admin Layout
+    return (
+      <div className="min-h-screen bg-[#08090C] text-white flex flex-col font-sans">
+        {/* Admin Bar with quick exit to student area */}
+        <div className="h-12 bg-[#0D0F12] border-b border-[#1D2230] px-6 flex items-center justify-between text-xs">
+          <span className="text-[#D4AF37] font-bold uppercase tracking-wider">
+            Painel Administrativo Master
+          </span>
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => navigateToRoute('aluno')}
+              className="text-gray-400 hover:text-white transition-colors"
+            >
+              Ver Portal do Aluno &rarr;
+            </button>
+            <button
+              onClick={logout}
+              className="text-rose-400 hover:text-rose-300 font-semibold"
+            >
+              Sair
+            </button>
+          </div>
+        </div>
+
+        <AdminPanel />
+      </div>
+    );
+  }
+
+  // 3. ROUTE: GENERAL STUDENT PORTAL (/aluno or /)
+  // If user is not logged in, show global Login Screen
   if (!currentUser) {
     return (
       <LoginScreen 
@@ -55,15 +180,13 @@ export default function App() {
   };
 
   const handleNavigate = (view: string) => {
+    if (view === 'admin') {
+      navigateToRoute('admin');
+      return;
+    }
     setCurrentView(view);
     setMobileSidebarOpen(false);
     window.scrollTo({ top: 0, behavior: 'smooth' });
-  };
-
-  const handleSearch = (query: string) => {
-    if (query.trim()) {
-      setCurrentView('all-courses');
-    }
   };
 
   return (

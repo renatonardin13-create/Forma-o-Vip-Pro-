@@ -210,3 +210,133 @@ export interface WebhookLogRecord {
   payload_bruto: any;
   created_at: string;
 }
+
+// ==========================================
+// MÓDULO 30: MULTIÁREAS DE MEMBROS & CATÁLOGO FLEXÍVEL
+// ==========================================
+
+export type MemberAreaType = 
+  | 'cursos' 
+  | 'ebooks' 
+  | 'aplicativos' 
+  | 'produtos_digitais' 
+  | 'ferramentas' 
+  | 'vip' 
+  | 'personalizada';
+
+export interface MemberArea {
+  id: string;
+  name: string;
+  slug: string;
+  type: MemberAreaType;
+  description: string;
+  logoUrl?: string;
+  faviconUrl?: string;
+  coverUrl?: string;
+  bannerUrl?: string;
+  mobileBannerUrl?: string;
+  primaryColor: string;
+  secondaryColor: string;
+  status: 'active' | 'inactive';
+  welcomeText?: string;
+  loginCustomization: LoginCustomization;
+  heroTitle?: string;
+  heroSubtitle?: string;
+  heroCtaText?: string;
+  heroCtaLink?: string;
+  productCount?: number;
+  studentCount?: number;
+  order: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type DigitalProductType = 
+  | 'curso'
+  | 'videoaula'
+  | 'ebook'
+  | 'aplicativo'
+  | 'ferramenta'
+  | 'arquivo'
+  | 'link'
+  | 'produto_digital'
+  | 'personalizado';
+
+export interface DigitalProduct {
+  id: string;
+  areaId: string;
+  title: string;
+  shortDescription: string;
+  fullDescription?: string;
+  type: DigitalProductType;
+  category: string;
+  coverUrl: string; // Capa vertical independente
+  bannerUrl: string; // Banner horizontal de destaque
+  mobileBannerUrl?: string;
+  logoUrl?: string;
+  thumbnailUrl?: string;
+  trailerUrl?: string;
+  author: {
+    name: string;
+    role: string;
+    avatar: string;
+  };
+  status: 'published' | 'draft' | 'archived';
+  order: number;
+  publishedAt: string;
+  courseId?: string; // Se vinculado a curso estruturado
+  ebook?: {
+    pdfUrl: string;
+    pageCount?: number;
+    fileSize?: string;
+    fileFormat?: string;
+    allowDownload?: boolean;
+    previewChapters?: number;
+  };
+  app?: {
+    appUrl?: string;
+    accessUrl?: string;
+    platform?: string;
+    appType?: 'web' | 'pwa' | 'download' | 'external';
+    screenshots?: string[];
+    demoVideoUrl?: string;
+    version?: string;
+    systemRequirements?: string;
+  };
+  tool?: {
+    toolUrl?: string;
+    techStack?: string;
+    instructions?: string;
+    credentials?: string;
+  };
+  file?: {
+    fileUrl?: string;
+    downloadUrl?: string;
+    fileName?: string;
+    fileSize?: string;
+    fileType?: string;
+    fileFormat?: string;
+  };
+  link?: {
+    targetUrl: string;
+    openInNewTab?: boolean;
+    buttonLabel?: string;
+  };
+  featured?: boolean;
+  badge?: string;
+  accessLevel?: 'free' | 'vip' | 'restricted';
+}
+
+export interface UserAreaAccess {
+  id: string;
+  userId: string;
+  areaId: string;
+  productId?: string;
+  startDate: string;
+  expirationDate?: string; // null ou string vazia = vitalício
+  status: 'active' | 'revoked' | 'blocked';
+  grantedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+

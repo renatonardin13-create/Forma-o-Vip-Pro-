@@ -28,8 +28,12 @@ import {
   INITIAL_BRANDING,
   INITIAL_PRODUTOS_CURSOS,
   INITIAL_MATRICULAS,
-  INITIAL_WEBHOOK_LOGS
+  INITIAL_WEBHOOK_LOGS,
+  INITIAL_MEMBER_AREAS,
+  INITIAL_DIGITAL_PRODUCTS,
+  INITIAL_USER_AREA_ACCESSES
 } from '../data/mockData';
+import { MemberArea, DigitalProduct, UserAreaAccess } from '../types';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'vip_pro_current_user',
@@ -46,6 +50,9 @@ const STORAGE_KEYS = {
   PRODUTOS_CURSOS: 'vip_pro_produtos_cursos',
   WEBHOOK_LOGS: 'vip_pro_webhook_logs',
   PROGRESSO_AULAS: 'vip_pro_progresso_aulas',
+  MEMBER_AREAS: 'vip_pro_member_areas',
+  DIGITAL_PRODUCTS: 'vip_pro_digital_products',
+  USER_AREA_ACCESSES: 'vip_pro_user_area_accesses',
 };
 
 // DOM synchronization helper for dynamic favicon and page title
@@ -115,6 +122,10 @@ class StoreManager {
   private produtosCursos: ProdutoCursoMapping[];
   private webhookLogs: WebhookLogRecord[];
   private progressoAulas: Record<string, AulaProgressRecord>; // key: `${userId}_${lessonId}`
+  private memberAreas: MemberArea[];
+  private digitalProducts: DigitalProduct[];
+  private userAreaAccesses: UserAreaAccess[];
+  private activeAreaSlug: string = 'formacao-vip';
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
 
@@ -126,6 +137,9 @@ class StoreManager {
     this.produtosCursos = loadStorage<ProdutoCursoMapping[]>(STORAGE_KEYS.PRODUTOS_CURSOS, INITIAL_PRODUTOS_CURSOS);
     this.webhookLogs = loadStorage<WebhookLogRecord[]>(STORAGE_KEYS.WEBHOOK_LOGS, INITIAL_WEBHOOK_LOGS);
     this.progressoAulas = loadStorage<Record<string, AulaProgressRecord>>(STORAGE_KEYS.PROGRESSO_AULAS, {});
+    this.memberAreas = loadStorage<MemberArea[]>(STORAGE_KEYS.MEMBER_AREAS, INITIAL_MEMBER_AREAS);
+    this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);
+    this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
       [`${INITIAL_USER.id}_course-negocios-digitais`]: {
         courseId: 'course-negocios-digitais',
@@ -954,6 +968,355 @@ class StoreManager {
       tempPassword
     };
   }
+
+  // ==========================================
+  // MÓDULO 30: MÉTODOS DE ÁREAS DE MEMBROS
+  // ==========================================
+
+  public getMemberAreas(): MemberArea[] {
+    return this.memberAreas.map(area => {
+      const products = this.digitalProducts.filter(p => p.areaId === area.id);
+      const accesses = this.userAreaAccesses.filter(a => a.areaId === area.id && a.status === 'active');
+      return {
+        ...area,
+        productCount: products.length,
+        studentCount: accesses.length
+      };
+    });
+  }
+
+  public getMemberAreaBySlug(slug: string): MemberArea | undefined {
+    const cleanSlug = slug.replace(/^\/+/, '').toLowerCase();
+    const area = this.memberAreas.find(a => a.slug.toLowerCase() === cleanSlug);
+    if (!area) return undefined;
+    const products = this.digitalProducts.filter(p => p.areaId === area.id);
+    const accesses = this.userAreaAccesses.filter(a => a.areaId === area.id && a.status === 'active');
+    return {
+      ...area,
+      productCount: products.length,
+      studentCount: accesses.length
+    };
+  }
+
+  public getMemberAreaById(id: string): MemberArea | undefined {
+    const area = this.memberAreas.find(a => a.id === id);
+    if (!area) return undefined;
+    const products = this.digitalProducts.filter(p => p.areaId === area.id);
+    const accesses = this.userAreaAccesses.filter(a => a.areaId === area.id && a.status === 'active');
+    return {
+      ...area,
+      productCount: products.length,
+      studentCount: accesses.length
+    };
+  }
+
+  public saveMemberArea(areaData: Partial<MemberArea> & { name: string; slug: string }): MemberArea {
+    const isNew = !areaData.id || !this.memberAreas.some(a => a.id === areaData.id);
+    const cleanSlug = areaData.slug.trim().toLowerCase().replace(/[^a-z0-9-_]/g, '-');
+
+    let savedArea: MemberArea;
+
+    if (isNew) {
+      savedArea = {
+        id: areaData.id || `area-${cleanSlug}-${Date.now()}`,
+        name: areaData.name,
+        slug: cleanSlug,
+        type: areaData.type || 'vip',
+        description: areaData.description || '',
+        logoUrl: areaData.logoUrl || '',
+        faviconUrl: areaData.faviconUrl || 'https://api.iconify.design/lucide:crown.svg?color=%23D4AF37',
+        coverUrl: areaData.coverUrl || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+        bannerUrl: areaData.bannerUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80',
+        mobileBannerUrl: areaData.mobileBannerUrl || '',
+        primaryColor: areaData.primaryColor || '#D4AF37',
+        secondaryColor: areaData.secondaryColor || '#151922',
+        status: areaData.status || 'active',
+        welcomeText: areaData.welcomeText || `Bem-vindo à área de membros ${areaData.name}.`,
+        heroTitle: areaData.heroTitle || areaData.name.toUpperCase(),
+        heroSubtitle: areaData.heroSubtitle || areaData.description || 'Área de Membros Exclusiva',
+        heroCtaText: areaData.heroCtaText || 'Explorar Conteúdos',
+        heroCtaLink: areaData.heroCtaLink || '#conteudos',
+        order: areaData.order !== undefined ? areaData.order : this.memberAreas.length + 1,
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0],
+        loginCustomization: areaData.loginCustomization || {
+          ...INITIAL_LOGIN_CUSTOMIZATION,
+          brandTitle: areaData.name.toUpperCase(),
+          brandSubtitle: areaData.description?.toUpperCase() || 'ÁREA DE MEMBROS EXCLUSIVA',
+          formTitle: `Portal ${areaData.name}`
+        }
+      };
+      this.memberAreas.push(savedArea);
+    } else {
+      const idx = this.memberAreas.findIndex(a => a.id === areaData.id);
+      savedArea = {
+        ...this.memberAreas[idx],
+        ...areaData,
+        slug: cleanSlug,
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
+      this.memberAreas[idx] = savedArea;
+    }
+
+    saveStorage(STORAGE_KEYS.MEMBER_AREAS, this.memberAreas);
+    this.notify();
+    return savedArea;
+  }
+
+  public deleteMemberArea(id: string): boolean {
+    this.memberAreas = this.memberAreas.filter(a => a.id !== id);
+    saveStorage(STORAGE_KEYS.MEMBER_AREAS, this.memberAreas);
+    this.notify();
+    return true;
+  }
+
+  public duplicateMemberArea(id: string): MemberArea | null {
+    const original = this.memberAreas.find(a => a.id === id);
+    if (!original) return null;
+
+    const newSlug = `${original.slug}-copia-${Date.now().toString().slice(-4)}`;
+    const newArea: MemberArea = {
+      ...original,
+      id: `area-${newSlug}`,
+      name: `${original.name} (Cópia)`,
+      slug: newSlug,
+      order: this.memberAreas.length + 1,
+      createdAt: new Date().toISOString().split('T')[0],
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+
+    this.memberAreas.push(newArea);
+    saveStorage(STORAGE_KEYS.MEMBER_AREAS, this.memberAreas);
+
+    // Also duplicate products for this area
+    const originalProducts = this.digitalProducts.filter(p => p.areaId === original.id);
+    originalProducts.forEach(prod => {
+      const duplicatedProd: DigitalProduct = {
+        ...prod,
+        id: `prod-${Date.now()}-${Math.random().toString(36).substr(2, 5)}`,
+        areaId: newArea.id,
+        title: `${prod.title}`
+      };
+      this.digitalProducts.push(duplicatedProd);
+    });
+    saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
+
+    this.notify();
+    return newArea;
+  }
+
+  public toggleMemberAreaStatus(id: string): void {
+    const area = this.memberAreas.find(a => a.id === id);
+    if (area) {
+      area.status = area.status === 'active' ? 'inactive' : 'active';
+      area.updatedAt = new Date().toISOString().split('T')[0];
+      saveStorage(STORAGE_KEYS.MEMBER_AREAS, this.memberAreas);
+      this.notify();
+    }
+  }
+
+  public getActiveAreaSlug(): string {
+    return this.activeAreaSlug;
+  }
+
+  public setActiveAreaSlug(slug: string): void {
+    this.activeAreaSlug = slug;
+    this.notify();
+  }
+
+  // ==========================================
+  // MÓDULO 30: MÉTODOS DE PRODUTOS DIGITAIS
+  // ==========================================
+
+  public getDigitalProducts(areaId?: string): DigitalProduct[] {
+    if (areaId) {
+      return this.digitalProducts.filter(p => p.areaId === areaId);
+    }
+    return this.digitalProducts;
+  }
+
+  public getDigitalProductById(id: string): DigitalProduct | undefined {
+    return this.digitalProducts.find(p => p.id === id);
+  }
+
+  public saveDigitalProduct(productData: Partial<DigitalProduct> & { title: string; areaId: string; type: any }): DigitalProduct {
+    const isNew = !productData.id || !this.digitalProducts.some(p => p.id === productData.id);
+    let savedProduct: DigitalProduct;
+
+    if (isNew) {
+      savedProduct = {
+        id: productData.id || `prod-${Date.now()}`,
+        areaId: productData.areaId,
+        title: productData.title,
+        shortDescription: productData.shortDescription || '',
+        fullDescription: productData.fullDescription || '',
+        type: productData.type || 'curso',
+        category: productData.category || 'Geral',
+        coverUrl: productData.coverUrl || 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=800&q=80',
+        bannerUrl: productData.bannerUrl || 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80',
+        mobileBannerUrl: productData.mobileBannerUrl || '',
+        logoUrl: productData.logoUrl || '',
+        thumbnailUrl: productData.thumbnailUrl || '',
+        trailerUrl: productData.trailerUrl || '',
+        author: productData.author || {
+          name: 'Renato Nardin',
+          role: 'Especialista VIP',
+          avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+        },
+        status: productData.status || 'published',
+        order: productData.order !== undefined ? productData.order : this.digitalProducts.length + 1,
+        publishedAt: productData.publishedAt || new Date().toISOString().split('T')[0],
+        courseId: productData.courseId,
+        ebook: productData.ebook,
+        app: productData.app,
+        tool: productData.tool,
+        file: productData.file,
+        link: productData.link,
+        featured: productData.featured || false,
+        badge: productData.badge,
+        accessLevel: productData.accessLevel || 'vip'
+      };
+      this.digitalProducts.push(savedProduct);
+    } else {
+      const idx = this.digitalProducts.findIndex(p => p.id === productData.id);
+      savedProduct = {
+        ...this.digitalProducts[idx],
+        ...productData
+      };
+      this.digitalProducts[idx] = savedProduct;
+    }
+
+    saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
+    this.notify();
+    return savedProduct;
+  }
+
+  public deleteDigitalProduct(id: string): boolean {
+    this.digitalProducts = this.digitalProducts.filter(p => p.id !== id);
+    saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
+    this.notify();
+    return true;
+  }
+
+  public toggleDigitalProductStatus(id: string): void {
+    const prod = this.digitalProducts.find(p => p.id === id);
+    if (prod) {
+      prod.status = prod.status === 'published' ? 'draft' : 'published';
+      saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
+      this.notify();
+    }
+  }
+
+  // ==========================================
+  // MÓDULO 30: MÉTODOS DE CONTROLE DE ACESSO
+  // ==========================================
+
+  public getUserAreaAccesses(userId?: string, areaId?: string): UserAreaAccess[] {
+    let list = this.userAreaAccesses;
+    if (userId) {
+      list = list.filter(a => a.userId === userId);
+    }
+    if (areaId) {
+      list = list.filter(a => a.areaId === areaId);
+    }
+    return list;
+  }
+
+  public checkUserAreaAccess(userId: string, areaIdOrSlug: string): boolean {
+    // Admin always has access to all areas
+    const user = this.users.find(u => u.id === userId);
+    if (user && user.role === 'admin') return true;
+
+    // Find area by ID or slug
+    const area = this.memberAreas.find(a => a.id === areaIdOrSlug || a.slug.toLowerCase() === areaIdOrSlug.toLowerCase());
+    if (!area) return false;
+
+    // Check if area is active
+    if (area.status !== 'active') return false;
+
+    // Check explicit user_area_access
+    const hasExplicitAccess = this.userAreaAccesses.some(
+      acc => acc.userId === userId && acc.areaId === area.id && acc.status === 'active'
+    );
+
+    if (hasExplicitAccess) return true;
+
+    // Also verify if student has matricula in any course or product assigned to this area
+    const areaProducts = this.digitalProducts.filter(p => p.areaId === area.id);
+    const userMatriculas = this.matriculas.filter(m => m.user_id === userId && m.status === 'ativo');
+
+    const hasMatriculaInArea = areaProducts.some(p => {
+      if (p.courseId && userMatriculas.some(m => m.curso_id === p.courseId)) return true;
+      if (userMatriculas.some(m => m.produto_id === p.id)) return true;
+      return false;
+    });
+
+    return hasMatriculaInArea;
+  }
+
+  public grantUserAreaAccess(data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }): UserAreaAccess {
+    // Check if access already exists
+    const existingIndex = this.userAreaAccesses.findIndex(
+      a => a.userId === data.userId && a.areaId === data.areaId && (data.productId ? a.productId === data.productId : !a.productId)
+    );
+
+    let savedAccess: UserAreaAccess;
+
+    if (existingIndex >= 0) {
+      savedAccess = {
+        ...this.userAreaAccesses[existingIndex],
+        status: 'active',
+        expirationDate: data.expirationDate,
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
+      this.userAreaAccesses[existingIndex] = savedAccess;
+    } else {
+      savedAccess = {
+        id: `acc-${Date.now()}`,
+        userId: data.userId,
+        areaId: data.areaId,
+        productId: data.productId,
+        startDate: new Date().toISOString().split('T')[0],
+        expirationDate: data.expirationDate,
+        status: 'active',
+        grantedBy: data.grantedBy || 'Painel Admin',
+        createdAt: new Date().toISOString().split('T')[0],
+        updatedAt: new Date().toISOString().split('T')[0]
+      };
+      this.userAreaAccesses.push(savedAccess);
+    }
+
+    saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+    this.notify();
+    return savedAccess;
+  }
+
+  public revokeUserAreaAccess(id: string): void {
+    const acc = this.userAreaAccesses.find(a => a.id === id);
+    if (acc) {
+      acc.status = 'revoked';
+      acc.updatedAt = new Date().toISOString().split('T')[0];
+      saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+      this.notify();
+    }
+  }
+
+  public blockUserAreaAccess(id: string): void {
+    const acc = this.userAreaAccesses.find(a => a.id === id);
+    if (acc) {
+      acc.status = 'blocked';
+      acc.updatedAt = new Date().toISOString().split('T')[0];
+      saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+      this.notify();
+    }
+  }
+
+  public deleteUserAreaAccess(id: string): boolean {
+    this.userAreaAccesses = this.userAreaAccesses.filter(a => a.id !== id);
+    saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+    this.notify();
+    return true;
+  }
 }
 
 export const store = new StoreManager();
@@ -983,6 +1346,28 @@ export function useStore() {
     matriculas: store.getMatriculas(),
     produtosCursos: store.getProdutosCursos(),
     webhookLogs: store.getWebhookLogs(),
+    memberAreas: store.getMemberAreas(),
+    digitalProducts: store.getDigitalProducts(),
+    userAreaAccesses: store.getUserAreaAccesses(),
+    activeAreaSlug: store.getActiveAreaSlug(),
+    setActiveAreaSlug: (slug: string) => store.setActiveAreaSlug(slug),
+    getMemberAreaBySlug: (slug: string) => store.getMemberAreaBySlug(slug),
+    getMemberAreaById: (id: string) => store.getMemberAreaById(id),
+    saveMemberArea: (area: Partial<MemberArea> & { name: string; slug: string }) => store.saveMemberArea(area),
+    deleteMemberArea: (id: string) => store.deleteMemberArea(id),
+    duplicateMemberArea: (id: string) => store.duplicateMemberArea(id),
+    toggleMemberAreaStatus: (id: string) => store.toggleMemberAreaStatus(id),
+    getDigitalProductsByArea: (areaId?: string) => store.getDigitalProducts(areaId),
+    getDigitalProductById: (id: string) => store.getDigitalProductById(id),
+    saveDigitalProduct: (product: Partial<DigitalProduct> & { title: string; areaId: string; type: any }) => store.saveDigitalProduct(product),
+    deleteDigitalProduct: (id: string) => store.deleteDigitalProduct(id),
+    toggleDigitalProductStatus: (id: string) => store.toggleDigitalProductStatus(id),
+    checkUserAreaAccess: (userId: string, areaIdOrSlug: string) => store.checkUserAreaAccess(userId, areaIdOrSlug),
+    grantUserAreaAccess: (data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }) => 
+      store.grantUserAreaAccess(data),
+    revokeUserAreaAccess: (id: string) => store.revokeUserAreaAccess(id),
+    blockUserAreaAccess: (id: string) => store.blockUserAreaAccess(id),
+    deleteUserAreaAccess: (id: string) => store.deleteUserAreaAccess(id),
     getMatriculasForUser: (userId: string) => store.getMatriculasForUser(userId),
     saveMatricula: (matricula: Matricula) => store.saveMatricula(matricula),
     updateMatriculaStatus: (id: string, status: 'ativo' | 'revogado' | 'reembolsado' | 'bloqueado') => store.updateMatriculaStatus(id, status),

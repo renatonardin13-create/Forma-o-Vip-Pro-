@@ -1,4 +1,18 @@
-import { Course, LearningTrack, Certificate, CommunityPost, LoginCustomization, User, BrandingConfig, ProdutoCursoMapping, Matricula, WebhookLogRecord } from '../types';
+import { 
+  Course, 
+  LearningTrack, 
+  Certificate, 
+  CommunityPost, 
+  LoginCustomization, 
+  User, 
+  BrandingConfig, 
+  ProdutoCursoMapping, 
+  Matricula, 
+  WebhookLogRecord,
+  MemberArea,
+  DigitalProduct,
+  UserAreaAccess
+} from '../types';
 
 export const INITIAL_BRANDING: BrandingConfig = {
   logoUrl: '',
@@ -762,3 +776,601 @@ export const INITIAL_WEBHOOK_LOGS: WebhookLogRecord[] = [
     created_at: 'Hoje, às 11:15:45'
   }
 ];
+
+// ==========================================
+// MÓDULO 30: INITIAL MEMBER AREAS
+// ==========================================
+
+export const INITIAL_MEMBER_AREAS: MemberArea[] = [
+  {
+    id: 'area-formacao-vip',
+    name: 'Formação VIP PRO',
+    slug: 'formacao-vip',
+    type: 'vip',
+    description: 'Área master com formações executivas em escala de negócios, inteligência artificial, tráfego pago de alto volume e mentorias exclusivas.',
+    logoUrl: '',
+    faviconUrl: 'https://api.iconify.design/lucide:crown.svg?color=%23D4AF37',
+    coverUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80',
+    primaryColor: '#D4AF37',
+    secondaryColor: '#151922',
+    status: 'active',
+    welcomeText: 'Bem-vindo ao ecossistema executivo Formação VIP PRO. Acesse suas masterclasses e acelere sua operação digital.',
+    heroTitle: 'FORMAÇÃO VIP PRO',
+    heroSubtitle: 'Aceleradora de Negócios Digitais & Inteligência Executiva',
+    heroCtaText: 'Continuar Minha Formação',
+    heroCtaLink: '#conteudos',
+    productCount: 4,
+    studentCount: 148,
+    order: 1,
+    createdAt: '2025-01-01',
+    updatedAt: '2026-08-25',
+    loginCustomization: { ...INITIAL_LOGIN_CUSTOMIZATION }
+  },
+  {
+    id: 'area-ebooks',
+    name: 'E-books & Playbooks de Elite',
+    slug: 'ebooks',
+    type: 'ebooks',
+    description: 'Biblioteca digital com livros, guias passo a passo, frameworks de copywriting, contratos jurídicos e playbooks práticos.',
+    logoUrl: '',
+    faviconUrl: 'https://api.iconify.design/lucide:book-open.svg?color=%23D4AF37',
+    coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1200&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1507842229451-7f01be7f7396?auto=format&fit=crop&w=1600&q=80',
+    primaryColor: '#E6A23C',
+    secondaryColor: '#1A1612',
+    status: 'active',
+    welcomeText: 'Acesse manuais práticos e playbooks em alta resolução direto na sua biblioteca virtual.',
+    heroTitle: 'BIBLIOTECA DE E-BOOKS VIP',
+    heroSubtitle: 'Playbooks, Frameworks e Manuais Estratégicos em PDF',
+    heroCtaText: 'Explorar E-books',
+    heroCtaLink: '#ebooks',
+    productCount: 3,
+    studentCount: 96,
+    order: 2,
+    createdAt: '2025-02-01',
+    updatedAt: '2026-08-25',
+    loginCustomization: {
+      ...INITIAL_LOGIN_CUSTOMIZATION,
+      brandTitle: 'BIBLIOTECA VIP DE E-BOOKS',
+      brandSubtitle: 'PLAYBOOKS E FRAMEWORKS EM ALTA DEFINIÇÃO',
+      brandHighlights: [
+        'Acesso instantâneo a mais de 30 E-books e Manuais em PDF',
+        'Leitor interativo direto no navegador sem necessidade de download',
+        'Atualizações constantes de frameworks e modelos de contratos'
+      ],
+      formTitle: 'Portal dos E-books',
+      formSubtitle: 'Entre com seu e-mail de compra para ler seus livros digitais.',
+      backgroundType: 'image',
+      backgroundUrl: 'https://images.unsplash.com/photo-1507842229451-7f01be7f7396?auto=format&fit=crop&w=1600&q=80'
+    }
+  },
+  {
+    id: 'area-aplicativos',
+    name: 'Aplicativos & SaaS PRO',
+    slug: 'aplicativos',
+    type: 'aplicativos',
+    description: 'Central de ferramentas web, aplicativos de produtividade, calculadoras de ROI e sistemas em nuvem para membros VIP.',
+    logoUrl: '',
+    faviconUrl: 'https://api.iconify.design/lucide:smartphone.svg?color=%23D4AF37',
+    coverUrl: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=1200&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80',
+    primaryColor: '#3B82F6',
+    secondaryColor: '#0E1726',
+    status: 'active',
+    welcomeText: 'Aplicativos exclusivos para automatizar sua rotina, espionar criativos e calcular métricas operacionais.',
+    heroTitle: 'SUITE DE APLICATIVOS VIP',
+    heroSubtitle: 'SaaS, Ferramentas Web e Automações em Nuvem',
+    heroCtaText: 'Acessar Ferramentas',
+    heroCtaLink: '#apps',
+    productCount: 3,
+    studentCount: 82,
+    order: 3,
+    createdAt: '2025-02-15',
+    updatedAt: '2026-08-25',
+    loginCustomization: {
+      ...INITIAL_LOGIN_CUSTOMIZATION,
+      brandTitle: 'SUITE DE APLICATIVOS PRO',
+      brandSubtitle: 'AUTOMAÇÃO, ESPIONAGEM E GESTÃO EM NUVEM',
+      brandHighlights: [
+        'Acesso a ferramentas proprietárias e utilitários SaaS exclusivos',
+        'Calculadoras avançadas de margem e esteira de tráfego',
+        'APIs integradas prontas para uso em sua empresa'
+      ],
+      formTitle: 'Login de Aplicativos',
+      formSubtitle: 'Digite suas credenciais para desbloquear o acesso aos sistemas.',
+      backgroundType: 'image',
+      backgroundUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80'
+    }
+  },
+  {
+    id: 'area-ferramentas',
+    name: 'Central de Ferramentas & Scripts',
+    slug: 'ferramentas',
+    type: 'ferramentas',
+    description: 'Scripts de clonagem segura de páginas, geradores de quizzes interativos, analisadores de criativos e automações de webhooks.',
+    logoUrl: '',
+    faviconUrl: 'https://api.iconify.design/lucide:wrench.svg?color=%23D4AF37',
+    coverUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=1200&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
+    primaryColor: '#10B981',
+    secondaryColor: '#061D15',
+    status: 'active',
+    welcomeText: 'Kits operacionais de código, geradores de landing pages e clonadores de oferta.',
+    heroTitle: 'HUB DE FERRAMENTAS & SCRIPTS',
+    heroSubtitle: 'Clonadores de Ofertas, Geradores de Quiz e Espionagem de Tráfego',
+    heroCtaText: 'Abrir Ferramentas',
+    heroCtaLink: '#ferramentas',
+    productCount: 3,
+    studentCount: 74,
+    order: 4,
+    createdAt: '2025-03-01',
+    updatedAt: '2026-08-25',
+    loginCustomization: {
+      ...INITIAL_LOGIN_CUSTOMIZATION,
+      brandTitle: 'CENTRAL DE FERRAMENTAS VIP',
+      brandSubtitle: 'SCRIPTS, AUTOMAÇÕES E ENGENHARIA DE VENDAS',
+      formTitle: 'Área de Ferramentas',
+      backgroundType: 'image',
+      backgroundUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80'
+    }
+  },
+  {
+    id: 'area-produtos-digitais',
+    name: 'Produtos Digitais & PLRs Prontos',
+    slug: 'produtos-digitais',
+    type: 'produtos_digitais',
+    description: 'Catálogo de produtos digitais validados, templates de páginas, criativos em PSD/Canva e pacotes completos para revenda.',
+    logoUrl: '',
+    faviconUrl: 'https://api.iconify.design/lucide:package.svg?color=%23D4AF37',
+    coverUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=1200&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80',
+    primaryColor: '#8B5CF6',
+    secondaryColor: '#160E28',
+    status: 'active',
+    welcomeText: 'Esteiras de produtos completas prontas para ativação em tráfego pago.',
+    heroTitle: 'CATÁLOGO DE PRODUTOS DIGITAIS',
+    heroSubtitle: 'Funis Prontos, Ofertas Validadas e Templates Editáveis',
+    heroCtaText: 'Explorar Catálogo',
+    heroCtaLink: '#produtos',
+    productCount: 2,
+    studentCount: 65,
+    order: 5,
+    createdAt: '2025-03-10',
+    updatedAt: '2026-08-25',
+    loginCustomization: {
+      ...INITIAL_LOGIN_CUSTOMIZATION,
+      brandTitle: 'ECOSSISTEMA DE PRODUTOS DIGITAIS',
+      brandSubtitle: 'KITS DE ATIVAÇÃO RÁPIDA DE OFERTAS',
+      formTitle: 'Login de Produtos',
+      backgroundType: 'image',
+      backgroundUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80'
+    }
+  }
+];
+
+// ==========================================
+// MÓDULO 30: INITIAL DIGITAL PRODUCTS
+// ==========================================
+
+export const INITIAL_DIGITAL_PRODUCTS: DigitalProduct[] = [
+  // --- PRODUTOS DA FORMAÇÃO VIP (Cursos) ---
+  {
+    id: 'prod-curso-negocios',
+    areaId: 'area-formacao-vip',
+    title: 'Aceleração de Negócios Digitais & Escala 100k',
+    shortDescription: 'Masterclass executiva com estratégias de aquisição de tráfego pago, LTV e criação de ofertas high-ticket.',
+    fullDescription: 'O treinamento definitivo para quem busca construir uma máquina previsível de aquisição e retenção no mercado digital.',
+    type: 'curso',
+    category: 'Estratégia & Escala',
+    coverUrl: 'https://images.unsplash.com/photo-1553877522-43269d4ea984?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Renato Nardin',
+      role: 'Founder & CEO Formação VIP',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 1,
+    publishedAt: '2025-01-10',
+    courseId: 'course-negocios-digitais',
+    featured: true,
+    badge: 'MAIS ASSISTIDO',
+    accessLevel: 'vip'
+  },
+  {
+    id: 'prod-curso-ia',
+    areaId: 'area-formacao-vip',
+    title: 'Inteligência Artificial Aplicada a Negócios & Automação',
+    shortDescription: 'Domine a engenharia de prompts, agentes autônomos e fluxos automáticos para multiplicar a produtividade da sua equipe.',
+    fullDescription: 'Como integrar LLMs, n8n, webhooks e automações avançadas no dia a dia da sua operação digital.',
+    type: 'curso',
+    category: 'Inteligência Artificial',
+    coverUrl: 'https://images.unsplash.com/photo-1677442136019-21780efad99a?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Dr. Leonardo Vasconcelos',
+      role: 'Head de Engenharia de IA',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 2,
+    publishedAt: '2025-01-20',
+    courseId: 'course-ia-produtividade',
+    featured: true,
+    badge: 'DESTAQUE',
+    accessLevel: 'vip'
+  },
+  {
+    id: 'prod-curso-trafego',
+    areaId: 'area-formacao-vip',
+    title: 'Tráfego Pago de Alto Volume & Escala de Criativos',
+    shortDescription: 'Estratégias avançadas no Meta Ads, Google Ads e TikTok Ads para investimentos de 5 a 6 dígitos diários.',
+    fullDescription: 'Aprenda como testar 50 criativos por semana e escalar campanhas com ROAS positivo consistente.',
+    type: 'curso',
+    category: 'Tráfego & Performance',
+    coverUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Matheus Albuquerque',
+      role: 'Senior Media Buyer ($15M+ geridos)',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 3,
+    publishedAt: '2025-02-05',
+    courseId: 'course-trafego-avancado',
+    featured: false,
+    accessLevel: 'vip'
+  },
+
+  // --- PRODUTOS DA ÁREA DE E-BOOKS ---
+  {
+    id: 'prod-ebook-copywriting',
+    areaId: 'area-ebooks',
+    title: 'O Livro Negro do Copywriting de Alta Conversão',
+    shortDescription: '150 páginas com 37 estruturas psicológicas, gatilhos de fechamento e modelos prontos de VSLs e páginas de captura.',
+    fullDescription: 'Um compêndio definitivo de persuasão aplicada ao mercado digital brasileiro, com exemplos práticos desmontados linha a linha.',
+    type: 'ebook',
+    category: 'Copywriting',
+    coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1507842229451-7f01be7f7396?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Renato Nardin',
+      role: 'Copywriter & Estrategista',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 1,
+    publishedAt: '2025-02-01',
+    featured: true,
+    badge: 'BEST SELLER',
+    ebook: {
+      pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/examples/learning/helloworld.pdf',
+      pageCount: 154,
+      fileSize: '18.4 MB',
+      allowDownload: true,
+      previewChapters: 3
+    }
+  },
+  {
+    id: 'prod-ebook-funis',
+    areaId: 'area-ebooks',
+    title: 'Playbook de Funis de Tráfego Direto & Esteiras High-Ticket',
+    shortDescription: 'Mapas mentais e diagramas de 12 funis comprovados para produtos de R$ 97 até R$ 5.000.',
+    fullDescription: 'Documentação detalhada dos funis mais lucrativos do mercado com taxas médias de conversão por etapa.',
+    type: 'ebook',
+    category: 'Funis & Estratégia',
+    coverUrl: 'https://images.unsplash.com/photo-1589829085413-56de8ae18c73?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Lucas Ferreira Mendes',
+      role: 'Growth Hacker',
+      avatar: 'https://images.unsplash.com/photo-1500648767791-00dcc994a43e?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 2,
+    publishedAt: '2025-02-10',
+    featured: true,
+    badge: 'ESSENCIAL',
+    ebook: {
+      pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/examples/learning/helloworld.pdf',
+      pageCount: 88,
+      fileSize: '12.1 MB',
+      allowDownload: true
+    }
+  },
+  {
+    id: 'prod-ebook-juridico',
+    areaId: 'area-ebooks',
+    title: 'Guia Jurídico & Contratos Blindados para Produtores e Coprodutores',
+    shortDescription: 'Minutas contratuais completas, cláusulas de proteção de dados (LGPD) e acordos de confidencialidade.',
+    fullDescription: 'Garanta a segurança patrimonial da sua empresa com modelos prontos revisados por advogados especialistas em direito digital.',
+    type: 'ebook',
+    category: 'Jurídico & Compliance',
+    coverUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1450133064473-71024230f91b?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Dra. Camila Alcantara',
+      role: 'Consultora Jurídica Digital',
+      avatar: 'https://images.unsplash.com/photo-1573496359142-b8d87734a5a2?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 3,
+    publishedAt: '2025-02-20',
+    featured: false,
+    ebook: {
+      pdfUrl: 'https://raw.githubusercontent.com/mozilla/pdf.js/ba2edeae/examples/learning/helloworld.pdf',
+      pageCount: 64,
+      fileSize: '8.7 MB',
+      allowDownload: true
+    }
+  },
+
+  // --- PRODUTOS DA ÁREA DE APLICATIVOS ---
+  {
+    id: 'prod-app-spy',
+    areaId: 'area-aplicativos',
+    title: 'SpyOffers PRO — Radar de Ofertas Validadas',
+    shortDescription: 'Sistema web para rastrear criativos em alta escala no Meta Ads e descobrir landing pages de alta conversão.',
+    fullDescription: 'Filtre anúncios ativos há mais de 30 dias no Facebook Ad Library, baixe vídeos em alta definição e analise o código-fonte das páginas.',
+    type: 'aplicativo',
+    category: 'Espionagem & Análise',
+    coverUrl: 'https://images.unsplash.com/photo-1551650975-87deedd944c3?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Equipe Tech VIP',
+      role: 'Engenharia de Software',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 1,
+    publishedAt: '2025-02-15',
+    featured: true,
+    badge: 'EXCLUSIVO VIP',
+    app: {
+      appUrl: '#spy-offers',
+      appType: 'web',
+      version: 'v3.2.0 PRO',
+      screenshots: [
+        'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
+        'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80'
+      ],
+      systemRequirements: 'Compatível com todos os navegadores modernos (Chrome, Safari, Edge, Firefox)'
+    }
+  },
+  {
+    id: 'prod-app-cloner',
+    areaId: 'area-aplicativos',
+    title: 'SiteCloner PRO — Clonador & Otimizador de Páginas',
+    shortDescription: 'Clone qualquer página de vendas externa em segundos, baixe os assets e substitua links de checkout automaticamente.',
+    fullDescription: 'Gera arquivos HTML/CSS/JS limpos com substituição de tags, links e scripts de tracking para subida rápida na sua hospedagem.',
+    type: 'aplicativo',
+    category: 'Landing Pages',
+    coverUrl: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Equipe Tech VIP',
+      role: 'Engenharia de Software',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 2,
+    publishedAt: '2025-02-25',
+    featured: true,
+    app: {
+      appUrl: '#site-cloner',
+      appType: 'web',
+      version: 'v2.8.5',
+      screenshots: [
+        'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80'
+      ]
+    }
+  },
+  {
+    id: 'prod-app-quiz',
+    areaId: 'area-aplicativos',
+    title: 'QuizBuilder Interativo — Motor de Funil Gamificado',
+    shortDescription: 'Crie questionários interativos com pontuação dinâmica, segmentação de lead e redirecionamento de checkout condicional.',
+    fullDescription: 'Aumente as taxas de conversão de tráfego frio em até 300% com funis interativos de diagnóstico e recomendação personalizada.',
+    type: 'aplicativo',
+    category: 'Conversão & Gamificação',
+    coverUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Equipe Tech VIP',
+      role: 'Engenharia de Software',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 3,
+    publishedAt: '2025-03-01',
+    featured: false,
+    app: {
+      appUrl: '#quiz-builder',
+      appType: 'web',
+      version: 'v1.5.0'
+    }
+  },
+
+  // --- PRODUTOS DA CENTRAL DE FERRAMENTAS ---
+  {
+    id: 'prod-tool-webhook-hub',
+    areaId: 'area-ferramentas',
+    title: 'Webhook & Postback Gateway — PerfectPay / Kiwify',
+    shortDescription: 'Roteador inteligente de eventos de venda em tempo real com disparo automático de senhas e matrículas no Supabase.',
+    fullDescription: 'Configure URLs de webhook, monitore logs de requisições e faça reprocessamento manual de transações recusadas com 1 clique.',
+    type: 'ferramenta',
+    category: 'Integrações',
+    coverUrl: 'https://images.unsplash.com/photo-1518770660439-4636190af475?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Renato Nardin',
+      role: 'Arquiteto de Soluções',
+      avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 1,
+    publishedAt: '2025-03-05',
+    featured: true,
+    tool: {
+      toolUrl: '#webhook-hub',
+      instructions: 'Insira a URL de webhook gerada no painel de configurações da sua plataforma de checkout.'
+    }
+  },
+  {
+    id: 'prod-tool-video-host',
+    areaId: 'area-ferramentas',
+    title: 'Hospedagem & Player Seguro Antidownload',
+    shortDescription: 'Proteção de vídeo com reprodução via IFrame API YouTube e MP4 com escudo contra cliques e marca d’água dinâmica.',
+    fullDescription: 'Impeça que alunos vazem ou baixem seus vídeos com o player blindado Formação VIP PRO.',
+    type: 'ferramenta',
+    category: 'Streaming & Vídeo',
+    coverUrl: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1536240478700-b869070f9279?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Equipe Tech VIP',
+      role: 'Streaming Core',
+      avatar: 'https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 2,
+    publishedAt: '2025-03-12',
+    featured: false,
+    tool: {
+      toolUrl: '#video-hosting',
+      instructions: 'Cadastre o ID do YouTube ou a URL do arquivo MP4 direto no gerenciador de aulas.'
+    }
+  },
+
+  // --- PRODUTOS DA ÁREA DE PRODUTOS DIGITAIS ---
+  {
+    id: 'prod-digital-kit-vendas',
+    areaId: 'area-produtos-digitais',
+    title: 'Kit de Páginas de Vendas em Tailwind & React',
+    shortDescription: 'Pacote com 15 templates responsivos de alta conversão, seções de garantia, FAQ interativo e checkout integrado.',
+    fullDescription: 'Código-fonte limpo pronto para subir no Vercel ou hospedagem tradicional.',
+    type: 'arquivo',
+    category: 'Templates & UI Kits',
+    coverUrl: 'https://images.unsplash.com/photo-1523275335684-37898b6baf30?auto=format&fit=crop&w=800&q=80',
+    bannerUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=1600&q=80',
+    author: {
+      name: 'Design Studio VIP',
+      role: 'Product Design',
+      avatar: 'https://images.unsplash.com/photo-1580489944761-15a19d654956?auto=format&fit=crop&w=200&q=80'
+    },
+    status: 'published',
+    order: 1,
+    publishedAt: '2025-03-15',
+    featured: true,
+    file: {
+      fileUrl: 'https://example.com/downloads/kit-paginas-vip.zip',
+      fileName: 'kit-paginas-vendas-vip-v4.zip',
+      fileSize: '45.8 MB',
+      fileType: 'ZIP'
+    }
+  }
+];
+
+// ==========================================
+// MÓDULO 30: INITIAL USER AREA ACCESSES
+// ==========================================
+
+export const INITIAL_USER_AREA_ACCESSES: UserAreaAccess[] = [
+  // Renato Nardin (Acesso a Formação VIP, E-books, Aplicativos, Ferramentas, Produtos)
+  {
+    id: 'acc-renato-01',
+    userId: 'usr_renato_01',
+    areaId: 'area-formacao-vip',
+    startDate: '2025-01-15',
+    status: 'active',
+    grantedBy: 'Sistema / Compra PerfectPay',
+    createdAt: '2025-01-15',
+    updatedAt: '2025-01-15'
+  },
+  {
+    id: 'acc-renato-02',
+    userId: 'usr_renato_01',
+    areaId: 'area-ebooks',
+    startDate: '2025-02-01',
+    status: 'active',
+    grantedBy: 'Sistema / Compra Kiwify',
+    createdAt: '2025-02-01',
+    updatedAt: '2025-02-01'
+  },
+  {
+    id: 'acc-renato-03',
+    userId: 'usr_renato_01',
+    areaId: 'area-aplicativos',
+    startDate: '2025-02-15',
+    status: 'active',
+    grantedBy: 'Admin Manual',
+    createdAt: '2025-02-15',
+    updatedAt: '2025-02-15'
+  },
+  {
+    id: 'acc-renato-04',
+    userId: 'usr_renato_01',
+    areaId: 'area-ferramentas',
+    startDate: '2025-03-01',
+    status: 'active',
+    grantedBy: 'Admin Manual',
+    createdAt: '2025-03-01',
+    updatedAt: '2025-03-01'
+  },
+  {
+    id: 'acc-renato-05',
+    userId: 'usr_renato_01',
+    areaId: 'area-produtos-digitais',
+    startDate: '2025-03-10',
+    status: 'active',
+    grantedBy: 'Admin Manual',
+    createdAt: '2025-03-10',
+    updatedAt: '2025-03-10'
+  },
+
+  // Dra. Camila Alcantara (Acesso a Formação VIP e E-books)
+  {
+    id: 'acc-camila-01',
+    userId: 'usr_camila_02',
+    areaId: 'area-formacao-vip',
+    startDate: '2025-02-10',
+    status: 'active',
+    grantedBy: 'Sistema / Compra PerfectPay',
+    createdAt: '2025-02-10',
+    updatedAt: '2025-02-10'
+  },
+  {
+    id: 'acc-camila-02',
+    userId: 'usr_camila_02',
+    areaId: 'area-ebooks',
+    startDate: '2025-02-10',
+    status: 'active',
+    grantedBy: 'Sistema / Compra Kiwify',
+    createdAt: '2025-02-10',
+    updatedAt: '2025-02-10'
+  },
+
+  // Lucas Ferreira Mendes (Acesso a E-books e Aplicativos)
+  {
+    id: 'acc-lucas-01',
+    userId: 'usr_lucas_03',
+    areaId: 'area-ebooks',
+    startDate: '2025-02-18',
+    status: 'active',
+    grantedBy: 'Sistema / Compra Kiwify',
+    createdAt: '2025-02-18',
+    updatedAt: '2025-02-18'
+  },
+  {
+    id: 'acc-lucas-02',
+    userId: 'usr_lucas_03',
+    areaId: 'area-aplicativos',
+    startDate: '2025-02-18',
+    status: 'active',
+    grantedBy: 'Admin Manual',
+    createdAt: '2025-02-18',
+    updatedAt: '2025-02-18'
+  }
+];
+

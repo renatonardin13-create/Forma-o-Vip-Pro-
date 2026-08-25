@@ -49,6 +49,9 @@ import { SiteClonerBuilder } from './tools/SiteClonerBuilder';
 import { SpyOffersManager } from './tools/SpyOffersManager';
 import { VideoHostingManager } from './tools/VideoHostingManager';
 import { PerfectPayIntegration } from './tools/PerfectPayIntegration';
+import { MemberAreasManager } from './MemberAreasManager';
+import { DigitalProductsManager } from './DigitalProductsManager';
+import { UserAccessManager } from './UserAccessManager';
 import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
@@ -215,11 +218,14 @@ export const AdminPanel: React.FC = () => {
       <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1D2230] pb-2 custom-scrollbar">
         {[
           { id: 'dashboard', label: 'DASHBOARD', icon: BarChart3 },
-          { id: 'users', label: 'USUÁRIOS', icon: Users },
-          { id: 'courses', label: 'ÁREAS DE MEMBROS', icon: Layers },
-          { id: 'modules_lessons', label: 'CADASTRAR PRODUTO', icon: PlaySquare },
+          { id: 'member_areas', label: 'ÁREAS DE MEMBROS', icon: Layers },
+          { id: 'digital_products', label: 'PRODUTOS DIGITAIS', icon: PlaySquare },
+          { id: 'user_access', label: 'CONTROLE DE ACESSOS', icon: ShieldCheck },
+          { id: 'users', label: 'USUÁRIOS & ALUNOS', icon: Users },
+          { id: 'courses', label: 'FORMAÇÕES & CURSOS', icon: BookOpen },
+          { id: 'modules_lessons', label: 'AULAS & CONTEÚDOS', icon: Video },
           { id: 'materials', label: 'OFERTA & ARQUIVOS', icon: FileText },
-          { id: 'login_customizer', label: 'TELA DE LOGIN', icon: LayoutGrid },
+          { id: 'login_customizer', label: 'TELA DE LOGIN GLOBAL', icon: LayoutGrid },
           { id: 'webhooks', label: 'WEBHOOKS', icon: Webhook },
           { id: 'templates', label: 'TEMPLATES', icon: Mail },
           { id: 'branding', label: 'LOGO & FAVICON', icon: Crown },
@@ -264,20 +270,26 @@ export const AdminPanel: React.FC = () => {
               <p className="text-[11px] text-emerald-400 font-medium">Dashboard VIP Premium Ativo</p>
             </div>
             <div 
-              onClick={() => setActiveAdminTab('courses')}
+              onClick={() => setActiveAdminTab('member_areas')}
               className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-2 cursor-pointer group"
             >
               <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Cursos Publicados</span>
+                <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Áreas de Membros</span>
                 <span className="text-[10px] text-[#D4AF37] font-bold group-hover:underline">Gerenciar &rarr;</span>
               </div>
-              <p className="text-3xl font-black text-[#D4AF37]">{courses.filter(c => c.isPublished).length}</p>
-              <p className="text-[11px] text-[#A7AFBF]">De um total de {courses.length} formações</p>
+              <p className="text-3xl font-black text-[#D4AF37]">3 Áreas</p>
+              <p className="text-[11px] text-[#A7AFBF]">Ecossistemas isolados</p>
             </div>
-            <div className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] space-y-2">
-              <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Certificados Emitidos</span>
-              <p className="text-3xl font-black text-white">{allCertificates.length}</p>
-              <p className="text-[11px] text-emerald-400 font-medium">Autenticação ativa SHA-256</p>
+            <div 
+              onClick={() => setActiveAdminTab('digital_products')}
+              className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-2 cursor-pointer group"
+            >
+              <div className="flex items-center justify-between">
+                <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Produtos Digitais</span>
+                <span className="text-[10px] text-[#D4AF37] font-bold group-hover:underline">Ver Catálogo &rarr;</span>
+              </div>
+              <p className="text-3xl font-black text-white">Catálogo Ativo</p>
+              <p className="text-[11px] text-emerald-400 font-medium">Cursos, Ebooks, SaaS & Apps</p>
             </div>
             <div className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] space-y-2">
               <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Disponibilidade Sistema</span>
@@ -340,6 +352,32 @@ export const AdminPanel: React.FC = () => {
             </div>
           </div>
         </div>
+      )}
+
+      {/* TAB: MULTI ÁREAS DE MEMBROS (MÓDULO 30) */}
+      {activeAdminTab === 'member_areas' && (
+        <MemberAreasManager
+          onOpenArea={(slug) => {
+            window.history.pushState({}, '', `/${slug}`);
+            window.dispatchEvent(new PopStateEvent('popstate'));
+          }}
+          onManageProducts={() => setActiveAdminTab('digital_products')}
+        />
+      )}
+
+      {/* TAB: PRODUTOS DIGITAIS DO CATÁLOGO (MÓDULO 30) */}
+      {activeAdminTab === 'digital_products' && (
+        <DigitalProductsManager
+          onSelectCourse={(courseId) => {
+            setSelectedCourseId(courseId);
+            setActiveAdminTab('modules_lessons');
+          }}
+        />
+      )}
+
+      {/* TAB: CONTROLE DE ACESSOS (MÓDULO 30) */}
+      {activeAdminTab === 'user_access' && (
+        <UserAccessManager />
       )}
 
       {/* TAB 2: USUÁRIOS & ALUNOS (DASHBOARD PREMIUM) */}
