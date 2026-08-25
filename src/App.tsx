@@ -27,7 +27,9 @@ export default function App() {
     login,
     logout, 
     memberAreas, 
-    checkUserAreaAccess 
+    checkUserAreaAccess,
+    adminTab,
+    setAdminTab
   } = useStore();
   
   // URL routing state
@@ -141,8 +143,8 @@ export default function App() {
       <div className="min-h-screen bg-[#08090C] text-white flex font-sans">
         {/* Fixed Left Vertical Admin Sidebar */}
         <AdminSidebar
-          activeTab={useStore().adminTab}
-          setActiveTab={useStore().setAdminTab}
+          activeTab={adminTab}
+          setActiveTab={setAdminTab}
           isOpenMobile={mobileAdminSidebarOpen}
           setIsOpenMobile={setMobileAdminSidebarOpen}
           onGoToStudentArea={() => navigateToRoute('aluno')}
@@ -159,7 +161,7 @@ export default function App() {
           <AdminHeader
             onToggleMobileMenu={() => setMobileAdminSidebarOpen(prev => !prev)}
             onGoToStudentArea={() => navigateToRoute('aluno')}
-            activeTab={useStore().adminTab}
+            activeTab={adminTab}
           />
 
           {/* Admin Page Content */}
