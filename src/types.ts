@@ -340,3 +340,57 @@ export interface UserAreaAccess {
   updatedAt: string;
 }
 
+// ==========================================
+// MÓDULO: HERO CAROUSEL PREMIUM
+// ==========================================
+
+export type BannerCategory = 
+  | 'CURSOS'
+  | 'E-BOOKS'
+  | 'APLICATIVOS'
+  | 'FERRAMENTAS'
+  | 'OFERTAS'
+  | 'LANÇAMENTOS'
+  | 'BÔNUS'
+  | 'EVENTOS'
+  | 'AULAS NOVAS'
+  | 'PRODUTOS EXTERNOS'
+  | 'CONTEÚDOS GRATUITOS';
+
+export interface HeroBanner {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  ctaText: string;
+  ctaLink: string;
+  desktopImage: string;
+  mobileImage: string;
+  productImage: string;
+  targetType: 'produto_interno' | 'curso' | 'ebook' | 'aplicativo' | 'aula' | 'oferta' | 'link_externo';
+  targetId?: string; // ID of course/product/aula if internal
+  memberAreaId: string; // 'all' or specific member area ID
+  category: BannerCategory;
+  order: number;
+  status: 'active' | 'inactive';
+  startDate?: string;
+  endDate?: string;
+  openInNewTab: boolean;
+  stats: {
+    impressions: number;
+    clicks: number;
+  };
+  customization?: {
+    textPosition?: 'left' | 'center' | 'right';
+    overlayOpacity?: number; // 0 to 100
+    imagePosition?: 'right' | 'center' | 'bottom';
+    bannerHeight?: 'normal' | 'large' | 'compact';
+    slideDurationSeconds?: number; // 5, 8, 10, etc. (0 = disabled)
+    showIndicators?: boolean;
+    showArrows?: boolean;
+    autoplay?: boolean;
+    ctaColor?: string;
+  };
+}
+
+

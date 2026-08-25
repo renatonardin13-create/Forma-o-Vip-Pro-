@@ -52,6 +52,8 @@ import { PerfectPayIntegration } from './tools/PerfectPayIntegration';
 import { MemberAreasManager } from './MemberAreasManager';
 import { DigitalProductsManager } from './DigitalProductsManager';
 import { UserAccessManager } from './UserAccessManager';
+import { AdminBannersManager } from './AdminBannersManager';
+import { AdminBannerStats } from './AdminBannerStats';
 import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
@@ -234,6 +236,8 @@ export const AdminPanel: React.FC = () => {
           { id: 'spy_offers', label: 'ESPIONAR OFERTAS', icon: Target },
           { id: 'video_hosting', label: 'HOSPEDAR VÍDEOS', icon: Video },
           { id: 'perfect_pay', label: 'CADASTRAR NA PERFECT PAY', icon: CreditCard },
+          { id: 'banners', label: 'BANNERS & HERO CAROUSEL', icon: Sparkles },
+          { id: 'banner_stats', label: 'ESTATÍSTICAS BANNERS', icon: BarChart3 },
         ].map((tab) => {
           const Icon = tab.icon;
           const isActive = activeAdminTab === tab.id;
@@ -1358,6 +1362,12 @@ export const AdminPanel: React.FC = () => {
           </div>
         </div>
       )}
+
+      {/* TAB: BANNERS & HERO CAROUSEL */}
+      {activeAdminTab === 'banners' && <AdminBannersManager />}
+
+      {/* TAB: BANNERS STATS */}
+      {activeAdminTab === 'banner_stats' && <AdminBannerStats />}
     </div>
   );
 };

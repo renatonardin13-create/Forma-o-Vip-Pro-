@@ -14,7 +14,8 @@ import {
   Matricula,
   ProdutoCursoMapping,
   WebhookLogRecord,
-  AulaProgressRecord
+  AulaProgressRecord,
+  HeroBanner
 } from '../types';
 import { 
   INITIAL_USER, 
@@ -31,7 +32,8 @@ import {
   INITIAL_WEBHOOK_LOGS,
   INITIAL_MEMBER_AREAS,
   INITIAL_DIGITAL_PRODUCTS,
-  INITIAL_USER_AREA_ACCESSES
+  INITIAL_USER_AREA_ACCESSES,
+  INITIAL_HERO_BANNERS
 } from '../data/mockData';
 import { MemberArea, DigitalProduct, UserAreaAccess } from '../types';
 
@@ -53,6 +55,7 @@ const STORAGE_KEYS = {
   MEMBER_AREAS: 'vip_pro_member_areas',
   DIGITAL_PRODUCTS: 'vip_pro_digital_products',
   USER_AREA_ACCESSES: 'vip_pro_user_area_accesses',
+  HERO_BANNERS: 'vip_pro_hero_banners',
 };
 
 // DOM synchronization helper for dynamic favicon and page title
@@ -125,6 +128,7 @@ class StoreManager {
   private memberAreas: MemberArea[];
   private digitalProducts: DigitalProduct[];
   private userAreaAccesses: UserAreaAccess[];
+  private heroBanners: HeroBanner[];
   private activeAreaSlug: string = 'formacao-vip';
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
@@ -140,6 +144,7 @@ class StoreManager {
     this.memberAreas = loadStorage<MemberArea[]>(STORAGE_KEYS.MEMBER_AREAS, INITIAL_MEMBER_AREAS);
     this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);
     this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
+    this.heroBanners = loadStorage<HeroBanner[]>(STORAGE_KEYS.HERO_BANNERS, INITIAL_HERO_BANNERS);
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
       [`${INITIAL_USER.id}_course-negocios-digitais`]: {
         courseId: 'course-negocios-digitais',
@@ -1317,6 +1322,103 @@ class StoreManager {
     this.notify();
     return true;
   }
+
+  // ==========================================
+  // MÓDULO: HERO CAROUSEL PREMIUM BANNERS
+  // ==========================================
+
+  public getHeroBanners(memberAreaId?: string): HeroBanner[] {
+    if (memberAreaId && memberAreaId !== 'all') {
+      return this.heroBanners.filter(b => b.memberAreaId === 'all' || b.memberAreaId === memberAreaId);
+    }
+    return this.heroBanners;
+  }
+
+  public saveHeroBanner(bannerData: Partial<HeroBanner> & { title: string }): HeroBanner {
+    const isNew = !bannerData.id || !this.heroBanners.some(b => b.id === bannerData.id);
+    let saved: HeroBanner;
+
+    if (isNew) {
+      saved = {
+        id: bannerData.id || `banner-${Date.now()}`,
+        title: bannerData.title,
+        subtitle: bannerData.subtitle || '🔥 NOVO DESTAQUE',
+        description: bannerData.description || '',
+        ctaText: bannerData.ctaText || 'ACESSAR AGORA →',
+        ctaLink: bannerData.ctaLink || '#',
+        desktopImage: bannerData.desktopImage || 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1600&q=80',
+        mobileImage: bannerData.mobileImage || '',
+        productImage: bannerData.productImage || 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+        targetType: bannerData.targetType || 'curso',
+        targetId: bannerData.targetId,
+        memberAreaId: bannerData.memberAreaId || 'all',
+        category: bannerData.category || 'CURSOS',
+        order: bannerData.order !== undefined ? bannerData.order : this.heroBanners.length + 1,
+        status: bannerData.status || 'active',
+        startDate: bannerData.startDate || new Date().toISOString().split('T')[0],
+        endDate: bannerData.endDate || '2026-12-31',
+        openInNewTab: bannerData.openInNewTab ?? false,
+        stats: bannerData.stats || { impressions: 0, clicks: 0 },
+        customization: bannerData.customization || {
+          textPosition: 'left',
+          overlayOpacity: 75,
+          imagePosition: 'right',
+          bannerHeight: 'normal',
+          slideDurationSeconds: 8,
+          showIndicators: true,
+          showArrows: true,
+          autoplay: true,
+          ctaColor: '#D4AF37'
+        }
+      };
+      this.heroBanners.push(saved);
+    } else {
+      const idx = this.heroBanners.findIndex(b => b.id === bannerData.id);
+      saved = {
+        ...this.heroBanners[idx],
+        ...bannerData
+      };
+      this.heroBanners[idx] = saved;
+    }
+
+    saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+    this.notify();
+    return saved;
+  }
+
+  public deleteHeroBanner(id: string): void {
+    this.heroBanners = this.heroBanners.filter(b => b.id !== id);
+    saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+    this.notify();
+  }
+
+  public toggleHeroBannerStatus(id: string): void {
+    const b = this.heroBanners.find(x => x.id === id);
+    if (b) {
+      b.status = b.status === 'active' ? 'inactive' : 'active';
+      saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+      this.notify();
+    }
+  }
+
+  public recordBannerImpression(id: string): void {
+    const b = this.heroBanners.find(x => x.id === id);
+    if (b) {
+      if (!b.stats) b.stats = { impressions: 0, clicks: 0 };
+      b.stats.impressions += 1;
+      saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+    }
+  }
+
+  public recordBannerClick(id: string): void {
+    const b = this.heroBanners.find(x => x.id === id);
+    if (b) {
+      if (!b.stats) b.stats = { impressions: 0, clicks: 0 };
+      b.stats.clicks += 1;
+      saveStorage(STORAGE_KEYS.HERO_BANNERS, this.heroBanners);
+      this.notify();
+    }
+  }
 }
 
 export const store = new StoreManager();
@@ -1414,5 +1516,12 @@ export function useStore() {
     resetBranding: () => store.resetBrandingConfig(),
     adminTab: store.getAdminTab(),
     setAdminTab: (tab: string) => store.setAdminTab(tab),
+    heroBanners: store.getHeroBanners(),
+    getHeroBanners: (areaId?: string) => store.getHeroBanners(areaId),
+    saveHeroBanner: (banner: Partial<HeroBanner> & { title: string }) => store.saveHeroBanner(banner),
+    deleteHeroBanner: (id: string) => store.deleteHeroBanner(id),
+    toggleHeroBannerStatus: (id: string) => store.toggleHeroBannerStatus(id),
+    recordBannerImpression: (id: string) => store.recordBannerImpression(id),
+    recordBannerClick: (id: string) => store.recordBannerClick(id),
   };
 }

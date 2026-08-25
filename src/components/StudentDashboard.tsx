@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { Course } from '../types';
+import { HeroCarousel } from './HeroCarousel';
 
 interface StudentDashboardProps {
   onOpenCourse: (courseId: string) => void;
@@ -111,6 +112,9 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </div>
         </div>
       </div>
+
+      {/* Hero Carousel Premium */}
+      <HeroCarousel onOpenCourse={onOpenCourse} />
 
       {/* 2. Key Indicator Metrics Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">

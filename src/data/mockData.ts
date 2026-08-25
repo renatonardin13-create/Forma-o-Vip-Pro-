@@ -11,7 +11,8 @@ import {
   WebhookLogRecord,
   MemberArea,
   DigitalProduct,
-  UserAreaAccess
+  UserAreaAccess,
+  HeroBanner
 } from '../types';
 
 export const INITIAL_BRANDING: BrandingConfig = {
@@ -1373,4 +1374,112 @@ export const INITIAL_USER_AREA_ACCESSES: UserAreaAccess[] = [
     updatedAt: '2025-02-18'
   }
 ];
+
+export const INITIAL_HERO_BANNERS: HeroBanner[] = [
+  {
+    id: 'banner-1',
+    title: 'ESTRATÉGIAS AVANÇADAS PARA VENDER MAIS',
+    subtitle: '🔥 NOVO TREINAMENTO EXCLUSIVO',
+    description: 'Aprenda estratégias práticas para aumentar suas vendas e transformar conhecimento em resultados reais com funis de alta conversão.',
+    ctaText: 'ACESSAR AGORA →',
+    ctaLink: '/course-detail',
+    desktopImage: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1600&q=80',
+    mobileImage: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
+    productImage: 'https://images.unsplash.com/photo-1460925895917-afdab827c52f?auto=format&fit=crop&w=800&q=80',
+    targetType: 'curso',
+    targetId: 'course-negocios-digitais',
+    memberAreaId: 'all',
+    category: 'LANÇAMENTOS',
+    order: 1,
+    status: 'active',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    openInNewTab: false,
+    stats: {
+      impressions: 1420,
+      clicks: 312
+    },
+    customization: {
+      textPosition: 'left',
+      overlayOpacity: 75,
+      imagePosition: 'right',
+      bannerHeight: 'normal',
+      slideDurationSeconds: 8,
+      showIndicators: true,
+      showArrows: true,
+      autoplay: true,
+      ctaColor: '#D4AF37'
+    }
+  },
+  {
+    id: 'banner-2',
+    title: 'DOMINANDO INTELIGÊNCIA ARTIFICIAL',
+    subtitle: '⚡ AULAS PRÁTICAS DE AUTOMAÇÃO',
+    description: 'Descubra como integrar ferramentas de IA Generativa nos seus processos diários e multiplicar sua produtividade em até 10x.',
+    ctaText: 'ASSISTIR AULAS →',
+    ctaLink: '/course-detail',
+    desktopImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80',
+    mobileImage: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
+    productImage: 'https://images.unsplash.com/photo-1620712943543-bcc4688e7485?auto=format&fit=crop&w=800&q=80',
+    targetType: 'curso',
+    targetId: 'course-ia-produtividade',
+    memberAreaId: 'all',
+    category: 'AULAS NOVAS',
+    order: 2,
+    status: 'active',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    openInNewTab: false,
+    stats: {
+      impressions: 980,
+      clicks: 215
+    },
+    customization: {
+      textPosition: 'left',
+      overlayOpacity: 80,
+      imagePosition: 'right',
+      bannerHeight: 'normal',
+      slideDurationSeconds: 8,
+      showIndicators: true,
+      showArrows: true,
+      autoplay: true,
+      ctaColor: '#D4AF37'
+    }
+  },
+  {
+    id: 'banner-3',
+    title: 'KIT VIP DE APLICATIVOS DE ALTA PERFORMANCE',
+    subtitle: '💎 BÔNUS EXCLUSIVO VIP',
+    description: 'Ferramentas de web scraping, gestão financeira e copy writing liberadas para todos os alunos do plano Black Executive.',
+    ctaText: 'BAIXAR AGORA →',
+    ctaLink: 'https://example.com',
+    desktopImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=1600&q=80',
+    mobileImage: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?auto=format&fit=crop&w=800&q=80',
+    productImage: 'https://images.unsplash.com/photo-1555066931-4365d14bab8c?auto=format&fit=crop&w=800&q=80',
+    targetType: 'aplicativo',
+    memberAreaId: 'all',
+    category: 'APLICATIVOS',
+    order: 3,
+    status: 'active',
+    startDate: '2026-01-01',
+    endDate: '2026-12-31',
+    openInNewTab: true,
+    stats: {
+      impressions: 740,
+      clicks: 189
+    },
+    customization: {
+      textPosition: 'left',
+      overlayOpacity: 75,
+      imagePosition: 'right',
+      bannerHeight: 'normal',
+      slideDurationSeconds: 8,
+      showIndicators: true,
+      showArrows: true,
+      autoplay: true,
+      ctaColor: '#D4AF37'
+    }
+  }
+];
+
 

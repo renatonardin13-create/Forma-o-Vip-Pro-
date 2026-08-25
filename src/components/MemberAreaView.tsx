@@ -27,6 +27,7 @@ import { useStore } from '../services/store';
 import { MemberArea, DigitalProduct, DigitalProductType } from '../types';
 import { EbookReaderModal } from './EbookReaderModal';
 import { AppDetailsModal } from './AppDetailsModal';
+import { HeroCarousel } from './HeroCarousel';
 
 interface MemberAreaViewProps {
   area: MemberArea;
@@ -313,6 +314,9 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
 
       {/* 3. CATALOG & FILTER SECTION */}
       <main id="conteudos" className="flex-1 max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-10 w-full space-y-8">
+        {/* Hero Carousel Premium for this area */}
+        <HeroCarousel memberAreaId={area.id} onOpenCourse={onSelectCourse} />
+
         {/* Filters and Search Bar */}
         <div className="bg-[#0D0F12] border border-[#1D2230] rounded-2xl p-5 flex flex-col md:flex-row items-center justify-between gap-4 shadow-lg">
           {/* Search */}
