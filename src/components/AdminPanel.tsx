@@ -81,6 +81,69 @@ export const AdminPanel: React.FC = () => {
   const activeAdminTab = adminTab || 'dashboard';
   const setActiveAdminTab = (tab: string) => setAdminTab(tab);
 
+  // Categorized Navigation Sections
+  const ADMIN_SECTIONS = [
+    {
+      id: 'geral',
+      label: 'Visão Geral & Alunos',
+      icon: BarChart3,
+      tabs: [
+        { id: 'dashboard', label: 'Dashboard', icon: BarChart3 },
+        { id: 'users', label: 'Alunos & Usuários', icon: Users },
+        { id: 'user_access', label: 'Controle de Acessos', icon: ShieldCheck },
+      ]
+    },
+    {
+      id: 'conteudo',
+      label: 'Áreas & Produtos',
+      icon: Layers,
+      tabs: [
+        { id: 'member_areas', label: 'Áreas de Membros', icon: Layers },
+        { id: 'digital_products', label: 'Produtos Digitais', icon: PlaySquare },
+        { id: 'courses', label: 'Cursos & Formações', icon: BookOpen },
+        { id: 'modules_lessons', label: 'Aulas & Módulos', icon: Video },
+        { id: 'materials', label: 'Oferta & Arquivos', icon: FileText },
+      ]
+    },
+    {
+      id: 'ferramentas',
+      label: 'Ferramentas VIP',
+      icon: Target,
+      tabs: [
+        { id: 'quiz_builder', label: 'Criar Quiz', icon: HelpCircle },
+        { id: 'clone_sites', label: 'Clonar Sites', icon: Copy },
+        { id: 'spy_offers', label: 'Espionar Ofertas', icon: Target },
+        { id: 'video_hosting', label: 'Hospedar Vídeos', icon: Video },
+        { id: 'perfect_pay', label: 'Perfect Pay', icon: CreditCard },
+      ]
+    },
+    {
+      id: 'configuracoes',
+      label: 'Configurações & Marca',
+      icon: Settings,
+      tabs: [
+        { id: 'login_customizer', label: 'Tela de Login', icon: LayoutGrid },
+        { id: 'branding', label: 'Logo & Favicon', icon: Crown },
+        { id: 'webhooks', label: 'Webhooks', icon: Webhook },
+        { id: 'templates', label: 'Templates de E-mail', icon: Mail },
+      ]
+    }
+  ];
+
+  // Selected Section state
+  const initialSection = ADMIN_SECTIONS.find(sec => sec.tabs.some(t => t.id === activeAdminTab))?.id || 'geral';
+  const [selectedSectionId, setSelectedSectionId] = useState<string>(initialSection);
+
+  // Sync section with activeAdminTab when switched from outside (e.g. dashboard cards)
+  React.useEffect(() => {
+    const matchingSection = ADMIN_SECTIONS.find(sec => sec.tabs.some(t => t.id === activeAdminTab));
+    if (matchingSection && matchingSection.id !== selectedSectionId) {
+      setSelectedSectionId(matchingSection.id);
+    }
+  }, [activeAdminTab]);
+
+  const currentSection = ADMIN_SECTIONS.find(sec => sec.id === selectedSectionId) || ADMIN_SECTIONS[0];
+
   // Selected course for module/lesson editing
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '');
   const selectedCourse = courses.find(c => c.id === selectedCourseId) || courses[0];
@@ -214,44 +277,57 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1D2230] pb-2 custom-scrollbar">
-        {[
-          { id: 'dashboard', label: 'DASHBOARD', icon: BarChart3 },
-          { id: 'member_areas', label: 'ÁREAS DE MEMBROS', icon: Layers },
-          { id: 'digital_products', label: 'PRODUTOS DIGITAIS', icon: PlaySquare },
-          { id: 'user_access', label: 'CONTROLE DE ACESSOS', icon: ShieldCheck },
-          { id: 'users', label: 'USUÁRIOS & ALUNOS', icon: Users },
-          { id: 'courses', label: 'FORMAÇÕES & CURSOS', icon: BookOpen },
-          { id: 'modules_lessons', label: 'AULAS & CONTEÚDOS', icon: Video },
-          { id: 'materials', label: 'OFERTA & ARQUIVOS', icon: FileText },
-          { id: 'login_customizer', label: 'TELA DE LOGIN GLOBAL', icon: LayoutGrid },
-          { id: 'webhooks', label: 'WEBHOOKS', icon: Webhook },
-          { id: 'templates', label: 'TEMPLATES', icon: Mail },
-          { id: 'branding', label: 'LOGO & FAVICON', icon: Crown },
-          { id: 'quiz_builder', label: 'CRIAR QUIZ', icon: HelpCircle },
-          { id: 'clone_sites', label: 'CRIAR E CLONAR SITES', icon: Copy },
-          { id: 'spy_offers', label: 'ESPIONAR OFERTAS', icon: Target },
-          { id: 'video_hosting', label: 'HOSPEDAR VÍDEOS', icon: Video },
-          { id: 'perfect_pay', label: 'CADASTRAR NA PERFECT PAY', icon: CreditCard },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeAdminTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveAdminTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 ${
-                isActive
-                  ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
-                  : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-[#8E9BB0]'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
+      {/* Admin Categorized Navigation */}
+      <div className="space-y-3">
+        {/* Tier 1: Section Category Selector */}
+        <div className="bg-[#0D0F12] border border-[#1D2230] p-1.5 rounded-2xl flex flex-wrap sm:flex-nowrap gap-1.5 shadow-lg">
+          {ADMIN_SECTIONS.map((sec) => {
+            const SectionIcon = sec.icon;
+            const isSectionActive = selectedSectionId === sec.id;
+            return (
+              <button
+                key={sec.id}
+                onClick={() => {
+                  setSelectedSectionId(sec.id);
+                  // If current tab is not in this section, switch to first tab
+                  if (!sec.tabs.some(t => t.id === activeAdminTab)) {
+                    setActiveAdminTab(sec.tabs[0].id);
+                  }
+                }}
+                className={`flex-1 flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-bold transition-all duration-200 ${
+                  isSectionActive
+                    ? 'bg-[#151922] text-[#D4AF37] border border-[#D4AF37]/30 shadow-md'
+                    : 'text-gray-400 hover:text-white hover:bg-[#151922]/50'
+                }`}
+              >
+                <SectionIcon className={`w-4 h-4 ${isSectionActive ? 'text-[#D4AF37]' : 'text-gray-500'}`} />
+                <span className="whitespace-nowrap">{sec.label}</span>
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Tier 2: Sub-tabs of Active Section */}
+        <div className="flex items-center gap-2 overflow-x-auto pb-1 pt-1 border-b border-[#1D2230]/60 custom-scrollbar">
+          {currentSection.tabs.map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeAdminTab === tab.id;
+            return (
+              <button
+                key={tab.id}
+                onClick={() => setActiveAdminTab(tab.id as any)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold whitespace-nowrap transition-all duration-200 ${
+                  isActive
+                    ? 'bg-[#D4AF37] text-black shadow-md shadow-[#D4AF37]/20'
+                    : 'bg-[#151922] text-gray-300 hover:text-white hover:bg-[#1D2230] border border-[#222738]'
+                }`}
+              >
+                <Icon className={`w-3.5 h-3.5 ${isActive ? 'text-black' : 'text-[#D4AF37]'}`} />
+                <span>{tab.label}</span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* TAB 1: ADMIN DASHBOARD */}
