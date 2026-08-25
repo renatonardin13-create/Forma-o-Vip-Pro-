@@ -21,12 +21,14 @@ import {
   ArrowRight,
   Menu,
   X,
-  Compass
+  Compass,
+  Lock
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { MemberArea, DigitalProduct, DigitalProductType } from '../types';
 import { EbookReaderModal } from './EbookReaderModal';
 import { AppDetailsModal } from './AppDetailsModal';
+import { ProductSalesModal } from './ProductSalesModal';
 import { HeroCarousel } from './HeroCarousel';
 
 interface MemberAreaViewProps {
@@ -50,7 +52,8 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
     currentUser, 
     digitalProducts, 
     memberAreas, 
-    courses 
+    courses,
+    hasProductAccess
   } = useStore();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -58,6 +61,7 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('all');
   const [activeEbook, setActiveEbook] = useState<DigitalProduct | null>(null);
   const [activeApp, setActiveApp] = useState<DigitalProduct | null>(null);
+  const [selectedProductForSale, setSelectedProductForSale] = useState<DigitalProduct | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const primaryColor = area.primaryColor || '#D4AF37';
@@ -388,12 +392,15 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
           {filteredProducts.map(product => {
             const badge = getTypeBadge(product.type);
             const BadgeIcon = badge.icon;
+            const hasAccess = currentUser ? hasProductAccess(currentUser.id, product.id) : false;
 
             return (
               <div
                 key={product.id}
                 id={`product-card-${product.id}`}
-                className="bg-[#0D0F12] border border-[#1D2230] rounded-2xl overflow-hidden hover:border-[#D4AF37]/50 transition-all duration-300 flex flex-col group shadow-xl"
+                className={`bg-[#0D0F12] border rounded-2xl overflow-hidden transition-all duration-300 flex flex-col group shadow-xl ${
+                  hasAccess ? 'border-[#1D2230] hover:border-[#D4AF37]/50' : 'border-[#222738] opacity-95'
+                }`}
               >
                 {/* Product Cover */}
                 <div className="relative h-48 w-full bg-[#151922] overflow-hidden">
@@ -404,19 +411,37 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F12] via-transparent to-black/60" />
 
+                  {!hasAccess && (
+                    <div className="absolute inset-0 bg-[#08090C]/85 backdrop-blur-[2px] flex flex-col items-center justify-center p-4 text-center space-y-2">
+                      <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#D4AF37] shadow-lg">
+                        <Lock className="w-6 h-6" />
+                      </div>
+                      <span className="text-xs font-black uppercase tracking-widest text-[#D4AF37]">
+                        CONTEÚDO PREMIUM
+                      </span>
+                    </div>
+                  )}
+
                   {/* Type Badge Top Left */}
                   <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1 rounded-lg text-xs font-bold bg-black/80 backdrop-blur-md border border-white/10 text-white">
                     <BadgeIcon className={`w-3.5 h-3.5 ${badge.color}`} />
                     <span>{badge.label}</span>
                   </div>
 
-                  {/* Featured Badge Top Right */}
-                  {product.featured && (
-                    <div className="absolute top-3 right-3 flex items-center gap-1 px-2.5 py-1 rounded-lg text-[11px] font-bold bg-[#D4AF37] text-black shadow-md">
-                      <Star className="w-3 h-3 fill-black" />
-                      Destaque
-                    </div>
-                  )}
+                  {/* Access Status Top Right */}
+                  <div className="absolute top-3 right-3 flex items-center gap-1 text-[11px] font-bold shadow-md">
+                    {hasAccess ? (
+                      <span className="bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 px-2.5 py-1 rounded-lg flex items-center gap-1 backdrop-blur-md">
+                        <CheckCircle2 className="w-3.5 h-3.5" />
+                        ACESSO LIBERADO
+                      </span>
+                    ) : (
+                      <span className="bg-[#D4AF37] text-black px-2.5 py-1 rounded-lg flex items-center gap-1 font-extrabold shadow-lg">
+                        <Lock className="w-3.5 h-3.5" />
+                        BLOQUEADO
+                      </span>
+                    )}
+                  </div>
 
                   {/* Category Pill Bottom */}
                   <div className="absolute bottom-3 left-3 text-[11px] font-bold text-[#D4AF37] uppercase tracking-wider bg-black/70 px-2 py-0.5 rounded backdrop-blur-sm">
@@ -451,20 +476,30 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
                   )}
 
                   {/* Action CTA Button */}
-                  <button
-                    onClick={() => handleProductAction(product)}
-                    className="w-full py-3 px-4 rounded-xl bg-[#151922] group-hover:bg-gradient-to-r group-hover:from-[#D4AF37] group-hover:to-[#F5D76E] text-white group-hover:text-black font-bold text-xs flex items-center justify-center gap-2 border border-[#222738] group-hover:border-[#D4AF37] transition-all shadow-md"
-                  >
-                    <span>
-                      {product.type === 'curso' && 'ACESSAR CURSO'}
-                      {product.type === 'ebook' && 'LER E-BOOK ONLINE'}
-                      {product.type === 'aplicativo' && 'ABRIR APLICATIVO'}
-                      {product.type === 'ferramenta' && 'UTILIZAR FERRAMENTA'}
-                      {product.type === 'arquivo' && 'BAIXAR ARQUIVO'}
-                      {product.type === 'link' && 'ACESSAR LINK'}
-                    </span>
-                    <ArrowRight className="w-4 h-4" />
-                  </button>
+                  {hasAccess ? (
+                    <button
+                      onClick={() => handleProductAction(product)}
+                      className="w-full py-3 px-4 rounded-xl bg-[#151922] hover:bg-emerald-500 text-white hover:text-black font-bold text-xs flex items-center justify-center gap-2 border border-[#222738] hover:border-emerald-400 transition-all shadow-md"
+                    >
+                      <span>
+                        {product.type === 'curso' && 'ACESSAR CURSO'}
+                        {product.type === 'ebook' && 'LER E-BOOK ONLINE'}
+                        {product.type === 'aplicativo' && 'ABRIR APLICATIVO'}
+                        {product.type === 'ferramenta' && 'UTILIZAR FERRAMENTA'}
+                        {product.type === 'arquivo' && 'BAIXAR ARQUIVO'}
+                        {product.type === 'link' && 'ACESSAR LINK'}
+                      </span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => setSelectedProductForSale(product)}
+                      className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] hover:from-[#e5bc3b] hover:to-[#ffd556] text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#D4AF37]/20 transition-all transform hover:scale-[1.02]"
+                    >
+                      <span>VER OFERTA</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </button>
+                  )}
                 </div>
               </div>
             );
@@ -494,6 +529,13 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
         <AppDetailsModal
           product={activeApp}
           onClose={() => setActiveApp(null)}
+        />
+      )}
+
+      {selectedProductForSale && (
+        <ProductSalesModal
+          product={selectedProductForSale}
+          onClose={() => setSelectedProductForSale(null)}
         />
       )}
     </div>

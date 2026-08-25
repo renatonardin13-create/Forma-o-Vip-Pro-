@@ -1277,6 +1277,33 @@ class StoreManager {
     return hasMatriculaInArea;
   }
 
+  public hasProductAccess(userId: string, productId: string): boolean {
+    if (!userId) return false;
+    const user = this.users.find(u => u.id === userId);
+    if (user && user.role === 'admin') return true;
+
+    // Check explicit user_area_access with productId
+    const hasExplicit = this.userAreaAccesses.some(
+      acc => acc.userId === userId && acc.productId === productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
+    );
+    if (hasExplicit) return true;
+
+    // Check matriculas
+    const product = this.digitalProducts.find(p => p.id === productId);
+    if (!product) return false;
+
+    const userMatriculas = this.matriculas.filter(m => m.user_id === userId && m.status === 'ativo');
+    if (product.courseId && userMatriculas.some(m => m.curso_id === product.courseId)) return true;
+    if (userMatriculas.some(m => m.produto_id === productId)) return true;
+
+    // Check if user has general area access for this product's area without specific product restriction
+    const hasAreaWideAccess = this.userAreaAccesses.some(
+      acc => acc.userId === userId && acc.areaId === product.areaId && acc.status === 'active' && (!acc.productId || acc.productId === productId) && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
+    );
+
+    return hasAreaWideAccess;
+  }
+
   public grantUserAreaAccess(data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }): UserAreaAccess {
     // Check if access already exists
     const existingIndex = this.userAreaAccesses.findIndex(
@@ -1485,6 +1512,7 @@ export function useStore() {
     deleteDigitalProduct: (id: string) => store.deleteDigitalProduct(id),
     toggleDigitalProductStatus: (id: string) => store.toggleDigitalProductStatus(id),
     checkUserAreaAccess: (userId: string, areaIdOrSlug: string) => store.checkUserAreaAccess(userId, areaIdOrSlug),
+    hasProductAccess: (userId: string, productId: string) => store.hasProductAccess(userId, productId),
     grantUserAreaAccess: (data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }) => 
       store.grantUserAreaAccess(data),
     revokeUserAreaAccess: (id: string) => store.revokeUserAreaAccess(id),
