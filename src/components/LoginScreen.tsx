@@ -14,6 +14,7 @@ import {
   UserCheck
 } from 'lucide-react';
 import { useStore } from '../services/store';
+import { getYouTubeBackgroundEmbedUrl } from '../utils/videoHelpers';
 
 interface LoginScreenProps {
   onLoginSuccess: () => void;
@@ -90,10 +91,11 @@ export const LoginScreen: React.FC<LoginScreenProps> = ({ onLoginSuccess }) => {
         )}
 
         {loginConfig.backgroundType === 'youtube' && (
-          <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none scale-125">
+          <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
             <iframe
-              src={`https://www.youtube.com/embed/dQw4w9WgXcQ?autoplay=1&mute=1&controls=0&loop=1&playlist=dQw4w9WgXcQ&showinfo=0&rel=0`}
-              className="w-full h-full border-0 pointer-events-none"
+              src={getYouTubeBackgroundEmbedUrl(loginConfig.backgroundUrl)}
+              className="absolute top-1/2 left-1/2 w-[160%] h-[160%] -translate-x-1/2 -translate-y-1/2 object-cover border-0 pointer-events-none"
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
               title="Cinematic BG"
             />
           </div>

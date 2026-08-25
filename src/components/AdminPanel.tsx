@@ -49,6 +49,7 @@ import { SiteClonerBuilder } from './tools/SiteClonerBuilder';
 import { SpyOffersManager } from './tools/SpyOffersManager';
 import { VideoHostingManager } from './tools/VideoHostingManager';
 import { PerfectPayIntegration } from './tools/PerfectPayIntegration';
+import { getYouTubeBackgroundEmbedUrl } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
   const { 
@@ -678,7 +679,19 @@ export const AdminPanel: React.FC = () => {
                         <button
                           key={type}
                           type="button"
-                          onClick={() => setDraftLogin(prev => ({ ...prev, backgroundType: type }))}
+                          onClick={() => {
+                            setDraftLogin(prev => {
+                              let nextUrl = prev.backgroundUrl;
+                              if (type === 'youtube' && (!nextUrl || !nextUrl.includes('youtu'))) {
+                                nextUrl = 'https://www.youtube.com/watch?v=BunCYR1XNyA';
+                              } else if (type === 'mp4' && (!nextUrl || !nextUrl.endsWith('.mp4'))) {
+                                nextUrl = 'https://assets.mixkit.co/videos/preview/mixkit-stars-in-space-background-1610-large.mp4';
+                              } else if (type === 'image' && (!nextUrl || nextUrl.includes('youtu') || nextUrl.endsWith('.mp4'))) {
+                                nextUrl = 'https://images.unsplash.com/photo-1507679799987-c73779587ccf?auto=format&fit=crop&w=1920&q=80';
+                              }
+                              return { ...prev, backgroundType: type, backgroundUrl: nextUrl };
+                            });
+                          }}
                           className={`py-2 rounded-xl text-xs font-bold uppercase border transition ${
                             draftLogin.backgroundType === type
                               ? 'bg-[#D4AF37]/20 text-[#D4AF37] border-[#D4AF37]'
@@ -693,10 +706,26 @@ export const AdminPanel: React.FC = () => {
 
                   {draftLogin.backgroundType !== 'solid' && draftLogin.backgroundType !== 'gradient' && (
                     <div className="space-y-1">
-                      <label className="text-xs font-semibold text-[#A7AFBF]">URL do Fundo ({draftLogin.backgroundType.toUpperCase()})</label>
+                      <div className="flex items-center justify-between">
+                        <label className="text-xs font-semibold text-[#A7AFBF]">
+                          URL do Fundo ({draftLogin.backgroundType.toUpperCase()})
+                        </label>
+                        {draftLogin.backgroundType === 'youtube' && (
+                          <span className="text-[10px] text-[#D4AF37] font-mono">
+                            Suporta youtube.com, youtu.be ou ID
+                          </span>
+                        )}
+                      </div>
                       <input
                         type="url"
                         value={draftLogin.backgroundUrl}
+                        placeholder={
+                          draftLogin.backgroundType === 'youtube' 
+                            ? 'https://www.youtube.com/watch?v=BunCYR1XNyA'
+                            : draftLogin.backgroundType === 'mp4'
+                            ? 'https://exemplo.com/video.mp4'
+                            : 'https://images.unsplash.com/...'
+                        }
                         onChange={(e) => setDraftLogin(prev => ({ ...prev, backgroundUrl: e.target.value }))}
                         className="w-full h-10 px-3 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs text-white focus:outline-none focus:border-[#D4AF37]"
                       />
@@ -914,6 +943,26 @@ export const AdminPanel: React.FC = () => {
                 <div className={`relative ${previewDevice === 'mobile' ? 'h-40' : 'flex-1'} p-6 flex flex-col justify-between overflow-hidden`}>
                   {draftLogin.backgroundType === 'image' && (
                     <img src={draftLogin.backgroundUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
+                  )}
+                  {draftLogin.backgroundType === 'mp4' && (
+                    <video 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline
+                      src={draftLogin.backgroundUrl}
+                      className="absolute inset-0 w-full h-full object-cover"
+                    />
+                  )}
+                  {draftLogin.backgroundType === 'youtube' && (
+                    <div className="absolute inset-0 w-full h-full overflow-hidden pointer-events-none">
+                      <iframe
+                        src={getYouTubeBackgroundEmbedUrl(draftLogin.backgroundUrl)}
+                        className="absolute top-1/2 left-1/2 w-[180%] h-[180%] -translate-x-1/2 -translate-y-1/2 object-cover border-0 pointer-events-none"
+                        allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                        title="Cinematic BG Preview"
+                      />
+                    </div>
                   )}
                   {draftLogin.backgroundType === 'gradient' && (
                     <div className="absolute inset-0 w-full h-full" style={{ background: `linear-gradient(135deg, ${draftLogin.gradientFrom}, ${draftLogin.gradientTo})` }} />
