@@ -216,47 +216,7 @@ export const AdminPanel: React.FC = () => {
         </div>
       </div>
 
-      {/* Admin Navigation Tabs */}
-      <div className="flex items-center gap-2 overflow-x-auto border-b border-[#1D2230] pb-2 custom-scrollbar">
-        {[
-          { id: 'dashboard', label: 'DASHBOARD', icon: BarChart3 },
-          { id: 'member_areas', label: 'ÁREAS DE MEMBROS', icon: Layers },
-          { id: 'digital_products', label: 'PRODUTOS DIGITAIS', icon: PlaySquare },
-          { id: 'user_access', label: 'CONTROLE DE ACESSOS', icon: ShieldCheck },
-          { id: 'users', label: 'USUÁRIOS & ALUNOS', icon: Users },
-          { id: 'courses', label: 'FORMAÇÕES & CURSOS', icon: BookOpen },
-          { id: 'modules_lessons', label: 'AULAS & CONTEÚDOS', icon: Video },
-          { id: 'materials', label: 'OFERTA & ARQUIVOS', icon: FileText },
-          { id: 'login_customizer', label: 'TELA DE LOGIN GLOBAL', icon: LayoutGrid },
-          { id: 'webhooks', label: 'WEBHOOKS', icon: Webhook },
-          { id: 'templates', label: 'TEMPLATES', icon: Mail },
-          { id: 'branding', label: 'LOGO & FAVICON', icon: Crown },
-          { id: 'quiz_builder', label: 'CRIAR QUIZ', icon: HelpCircle },
-          { id: 'clone_sites', label: 'CRIAR E CLONAR SITES', icon: Copy },
-          { id: 'spy_offers', label: 'ESPIONAR OFERTAS', icon: Target },
-          { id: 'video_hosting', label: 'HOSPEDAR VÍDEOS', icon: Video },
-          { id: 'perfect_pay', label: 'CADASTRAR NA PERFECT PAY', icon: CreditCard },
-          { id: 'banners', label: 'BANNERS & HERO CAROUSEL', icon: Sparkles },
-          { id: 'banner_stats', label: 'ESTATÍSTICAS BANNERS', icon: BarChart3 },
-        ].map((tab) => {
-          const Icon = tab.icon;
-          const isActive = activeAdminTab === tab.id;
-          return (
-            <button
-              key={tab.id}
-              onClick={() => setActiveAdminTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 ${
-                isActive
-                  ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
-                  : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
-              }`}
-            >
-              <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-[#8E9BB0]'}`} />
-              <span>{tab.label}</span>
-            </button>
-          );
-        })}
-      </div>
+
 
       {/* TAB 1: ADMIN DASHBOARD */}
       {activeAdminTab === 'dashboard' && (

@@ -12,6 +12,8 @@ import { MaterialsView } from './components/MaterialsView';
 import { CommunityView } from './components/CommunityView';
 import { SupportView } from './components/SupportView';
 import { AdminPanel } from './components/AdminPanel';
+import { AdminSidebar } from './components/AdminSidebar';
+import { AdminHeader } from './components/AdminHeader';
 import { LoginScreen } from './components/LoginScreen';
 import { AreaLoginScreen } from './components/AreaLoginScreen';
 import { MemberAreaView } from './components/MemberAreaView';
@@ -124,31 +126,47 @@ export default function App() {
       );
     }
 
-    // Admin Layout
-    return (
-      <div className="min-h-screen bg-[#08090C] text-white flex flex-col font-sans">
-        {/* Admin Bar with quick exit to student area */}
-        <div className="h-12 bg-[#0D0F12] border-b border-[#1D2230] px-6 flex items-center justify-between text-xs">
-          <span className="text-[#D4AF37] font-bold uppercase tracking-wider">
-            Painel Administrativo Master
-          </span>
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => navigateToRoute('aluno')}
-              className="text-gray-400 hover:text-white transition-colors"
-            >
-              Ver Portal do Aluno &rarr;
-            </button>
-            <button
-              onClick={logout}
-              className="text-rose-400 hover:text-rose-300 font-semibold"
-            >
-              Sair
-            </button>
-          </div>
-        </div>
+    // Admin Layout State
+    const [mobileAdminSidebarOpen, setMobileAdminSidebarOpen] = useState(false);
+    const [isAdminCollapsed, setIsAdminCollapsed] = useState<boolean>(() => {
+      return localStorage.getItem('vip_admin_sidebar_collapsed') === 'true';
+    });
 
-        <AdminPanel />
+    useEffect(() => {
+      localStorage.setItem('vip_admin_sidebar_collapsed', String(isAdminCollapsed));
+    }, [isAdminCollapsed]);
+
+    // Admin Layout with fixed left sidebar and responsive content
+    return (
+      <div className="min-h-screen bg-[#08090C] text-white flex font-sans">
+        {/* Fixed Left Vertical Admin Sidebar */}
+        <AdminSidebar
+          activeTab={useStore().adminTab}
+          setActiveTab={useStore().setAdminTab}
+          isOpenMobile={mobileAdminSidebarOpen}
+          setIsOpenMobile={setMobileAdminSidebarOpen}
+          onGoToStudentArea={() => navigateToRoute('aluno')}
+          onLogout={logout}
+          isCollapsed={isAdminCollapsed}
+          setIsCollapsed={setIsAdminCollapsed}
+        />
+
+        {/* Main Content Area (shifted based on sidebar width) */}
+        <div className={`flex-1 flex flex-col min-h-screen transition-all duration-300 ${
+          isAdminCollapsed ? 'lg:pl-20' : 'lg:pl-72'
+        }`}>
+          {/* Admin Top Header */}
+          <AdminHeader
+            onToggleMobileMenu={() => setMobileAdminSidebarOpen(prev => !prev)}
+            onGoToStudentArea={() => navigateToRoute('aluno')}
+            activeTab={useStore().adminTab}
+          />
+
+          {/* Admin Page Content */}
+          <main className="flex-1 w-full p-4 sm:p-6 lg:p-10 max-w-[1600px] mx-auto overflow-x-hidden">
+            <AdminPanel />
+          </main>
+        </div>
       </div>
     );
   }
