@@ -11,8 +11,7 @@ import {
   WebhookLogRecord,
   MemberArea,
   DigitalProduct,
-  UserAreaAccess,
-  HeroBanner
+  UserAreaAccess
 } from '../types';
 
 export const INITIAL_BRANDING: BrandingConfig = {
@@ -1372,81 +1371,6 @@ export const INITIAL_USER_AREA_ACCESSES: UserAreaAccess[] = [
     grantedBy: 'Admin Manual',
     createdAt: '2025-02-18',
     updatedAt: '2025-02-18'
-  }
-];
-
-export const INITIAL_HERO_BANNERS: HeroBanner[] = [
-  {
-    id: 'banner-01',
-    title: 'ESTRATÉGIAS AVANÇADAS PARA ESCALAR SUAS VENDAS',
-    subtitle: '🔥 NOVO TREINAMENTO DE ALTA PERFORMANCE',
-    description: 'Aprenda metodologias práticas e testadas para multiplicar suas conversões e construir uma operação previsível no mercado digital.',
-    buttonText: 'ACESSAR TREINAMENTO AGORA',
-    targetType: 'course',
-    targetId: 'crs-gestao-01',
-    openInNewTab: false,
-    backgroundImageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1920&q=80',
-    mobileBackgroundImageUrl: 'https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=800&q=80',
-    productImageUrl: 'https://images.unsplash.com/photo-1557804506-669a67965ba0?auto=format&fit=crop&w=800&q=80',
-    areaId: 'global',
-    category: 'treinamento',
-    order: 1,
-    status: 'active',
-    overlayIntensity: 'cinematic',
-    accentColor: '#D4AF37',
-    textAlignment: 'left',
-    impressions: 1420,
-    clicks: 382,
-    createdAt: '2025-02-01',
-    updatedAt: '2025-02-20'
-  },
-  {
-    id: 'banner-02',
-    title: 'AUTOMAÇÃO COM INTELIGÊNCIA ARTIFICIAL & FUNIS VIP',
-    subtitle: '⚡ APLICATIVO EXCLUSIVO LIBERADO',
-    description: 'Ferramenta oficial para criar copys de alta conversão, espionar anúncios concorrentes e gerar estruturas completas em poucos segundos.',
-    buttonText: 'ABRIR APLICATIVO VIP',
-    targetType: 'app',
-    targetId: 'prod-app-01',
-    openInNewTab: false,
-    backgroundImageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1920&q=80',
-    mobileBackgroundImageUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80',
-    productImageUrl: 'https://images.unsplash.com/photo-1551288049-bebda4e38f71?auto=format&fit=crop&w=800&q=80',
-    areaId: 'global',
-    category: 'aplicativo',
-    order: 2,
-    status: 'active',
-    overlayIntensity: 'cinematic',
-    accentColor: '#3B82F6',
-    textAlignment: 'left',
-    impressions: 980,
-    clicks: 245,
-    createdAt: '2025-02-05',
-    updatedAt: '2025-02-22'
-  },
-  {
-    id: 'banner-03',
-    title: 'O GUIA DEFINITIVO DO COPYWRITING MULTIMILIONÁRIO',
-    subtitle: '📚 LANÇAMENTO E-BOOK INTERATIVO',
-    description: 'Descubra os 27 gatilhos psicológicos mais profundos utilizados pelas maiores marcas do mundo para dobrar o ticket médio.',
-    buttonText: 'LER E-BOOK ONLINE',
-    targetType: 'ebook',
-    targetId: 'prod-ebook-01',
-    openInNewTab: false,
-    backgroundImageUrl: 'https://images.unsplash.com/photo-1507842229451-7f41e065ab2b?auto=format&fit=crop&w=1920&q=80',
-    mobileBackgroundImageUrl: 'https://images.unsplash.com/photo-1507842229451-7f41e065ab2b?auto=format&fit=crop&w=800&q=80',
-    productImageUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80',
-    areaId: 'global',
-    category: 'ebook',
-    order: 3,
-    status: 'active',
-    overlayIntensity: 'cinematic',
-    accentColor: '#F59E0B',
-    textAlignment: 'left',
-    impressions: 760,
-    clicks: 190,
-    createdAt: '2025-02-10',
-    updatedAt: '2025-02-24'
   }
 ];
 
