@@ -51,6 +51,7 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
   isCollapsed,
   setIsCollapsed
 }) => {
+  const { branding } = useStore();
   // Accordion open states
   const [openSections, setOpenSections] = useState<Record<string, boolean>>({
     conteudo: true,
@@ -95,23 +96,37 @@ export const AdminSidebar: React.FC<AdminSidebarProps> = ({
         <div className="p-5 border-b border-[#1D2230] flex items-center justify-between">
           {!isCollapsed ? (
             <div className="space-y-1">
-              <div className="flex items-center gap-2">
-                <div className="w-8 h-8 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#F5D76E] flex items-center justify-center text-black font-black text-sm shadow-md">
-                  VIP
-                </div>
-                <div>
-                  <h2 className="text-sm font-extrabold text-white tracking-tight leading-none">
-                    FORMAÇÃO VIP PRO
-                  </h2>
-                  <span className="text-[10px] text-[#D4AF37] font-mono uppercase tracking-widest block mt-0.5">
-                    Central Admin
-                  </span>
-                </div>
+              <div className="flex items-center gap-3">
+                {branding.logoUrl ? (
+                  <img 
+                    src={branding.logoUrl} 
+                    alt={branding.brandName || 'Logo'} 
+                    className="max-h-10 max-w-[140px] object-contain rounded-lg"
+                  />
+                ) : (
+                  <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#F5D76E] flex items-center justify-center text-black font-black text-sm shadow-md flex-shrink-0">
+                    VIP
+                  </div>
+                )}
+                {branding.logoType !== 'image' && (
+                  <div>
+                    <h2 className="text-sm font-extrabold text-white tracking-tight leading-none truncate max-w-[130px]">
+                      {branding.brandName || 'FORMAÇÃO VIP PRO'}
+                    </h2>
+                    <span className="text-[10px] text-[#D4AF37] font-mono uppercase tracking-widest block mt-0.5">
+                      Central Admin
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           ) : (
-            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#F5D76E] flex items-center justify-center text-black font-black text-base mx-auto">
-              VIP
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-[#D4AF37] to-[#F5D76E] flex items-center justify-center text-black font-black text-base mx-auto overflow-hidden">
+              {branding.logoUrl ? (
+                <img src={branding.logoUrl} alt="Logo" className="w-full h-full object-cover" />
+              ) : (
+                'VIP'
+              )}
             </div>
           )}
 
