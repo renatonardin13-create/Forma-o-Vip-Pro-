@@ -55,10 +55,13 @@ function applyBrandingToDOM(branding: BrandingConfig) {
   }
 }
 
+// Memory cache fallback for items that exceed localStorage quota
+const memoryStorageFallback: Record<string, string> = {};
+
 // Initial setup helper
 function loadStorage<T>(key: string, fallback: T): T {
   try {
-    const item = localStorage.getItem(key);
+    const item = localStorage.getItem(key) || memoryStorageFallback[key] || (typeof sessionStorage !== 'undefined' ? sessionStorage.getItem(key) : null);
     return item ? JSON.parse(item) : fallback;
   } catch {
     return fallback;
@@ -67,9 +70,21 @@ function loadStorage<T>(key: string, fallback: T): T {
 
 function saveStorage<T>(key: string, value: T): void {
   try {
-    localStorage.setItem(key, JSON.stringify(value));
-  } catch (e) {
-    console.error('Failed to save to storage', e);
+    const serialized = JSON.stringify(value);
+    localStorage.setItem(key, serialized);
+  } catch (e: any) {
+    // If quota exceeded or storage error, save to sessionStorage and memory cache
+    console.warn(`Storage quota or write warning for key "${key}". Activating safe fallback.`, e?.message);
+    try {
+      const serialized = JSON.stringify(value);
+      memoryStorageFallback[key] = serialized;
+      if (typeof sessionStorage !== 'undefined') {
+        sessionStorage.setItem(key, serialized);
+      }
+    } catch (fallbackError) {
+      // Keep in memory
+      memoryStorageFallback[key] = JSON.stringify(value);
+    }
   }
 }
 
@@ -85,6 +100,7 @@ class StoreManager {
   private loginConfig: LoginCustomization;
   private favoriteCourseIds: string[];
   private branding: BrandingConfig;
+  private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
 
   constructor() {
@@ -626,6 +642,15 @@ class StoreManager {
     applyBrandingToDOM(this.branding);
     this.notify();
   }
+
+  public getAdminTab(): string {
+    return this.adminTab;
+  }
+
+  public setAdminTab(tab: string): void {
+    this.adminTab = tab;
+    this.notify();
+  }
 }
 
 export const store = new StoreManager();
@@ -684,5 +709,7 @@ export function useStore() {
     resetLoginConfig: () => store.resetLoginConfig(),
     updateBranding: (config: Partial<BrandingConfig>) => store.updateBrandingConfig(config),
     resetBranding: () => store.resetBrandingConfig(),
+    adminTab: store.getAdminTab(),
+    setAdminTab: (tab: string) => store.setAdminTab(tab),
   };
 }

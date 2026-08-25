@@ -55,12 +55,13 @@ export const AdminPanel: React.FC = () => {
     toggleUserRole,
     updateLoginConfig,
     resetLoginConfig,
-    allCertificates
+    allCertificates,
+    adminTab,
+    setAdminTab
   } = useStore();
 
-  const [activeAdminTab, setActiveAdminTab] = useState<
-    'dashboard' | 'users' | 'branding' | 'courses' | 'modules_lessons' | 'materials' | 'categories' | 'login_customizer'
-  >('dashboard');
+  const activeAdminTab = (adminTab as 'dashboard' | 'users' | 'branding' | 'courses' | 'modules_lessons' | 'materials' | 'categories' | 'login_customizer') || 'dashboard';
+  const setActiveAdminTab = (tab: string) => setAdminTab(tab);
 
   // Selected course for module/lesson editing
   const [selectedCourseId, setSelectedCourseId] = useState<string>(courses[0]?.id || '');
@@ -212,13 +213,13 @@ export const AdminPanel: React.FC = () => {
             <button
               key={tab.id}
               onClick={() => setActiveAdminTab(tab.id as any)}
-              className={`flex items-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold whitespace-nowrap transition ${
+              className={`flex items-center gap-2 px-4 py-2 rounded-2xl text-xs font-bold whitespace-nowrap transition-all duration-200 ${
                 isActive
-                  ? 'bg-[#151922] text-[#D4AF37] border border-[#D4AF37]/50 shadow-sm'
-                  : 'text-[#A7AFBF] hover:text-white hover:bg-[#151922]/50'
+                  ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                  : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
               }`}
             >
-              <Icon className="w-4 h-4" />
+              <Icon className={`w-4 h-4 ${isActive ? 'text-black' : 'text-[#8E9BB0]'}`} />
               <span>{tab.label}</span>
             </button>
           );

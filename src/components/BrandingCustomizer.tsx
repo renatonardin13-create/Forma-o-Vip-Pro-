@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import { 
   Crown, 
   Sparkles, 
@@ -14,11 +14,18 @@ import {
   Eye,
   Type,
   Layers,
+  LayoutGrid,
+  Users,
   Smartphone,
-  Monitor
+  Monitor,
+  Upload,
+  Trash2,
+  FileImage,
+  AlertCircle
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { BrandingConfig } from '../types';
+import { optimizeImageFile, formatBytes } from '../utils/imageOptimizer';
 
 export const BrandingCustomizer: React.FC = () => {
   const { branding, updateBranding, resetBranding } = useStore();
@@ -26,6 +33,96 @@ export const BrandingCustomizer: React.FC = () => {
   const [form, setForm] = useState<BrandingConfig>({ ...branding });
   const [saveSuccess, setSaveSuccess] = useState(false);
   const [activePreview, setActivePreview] = useState<'sidebar' | 'login' | 'browser'>('sidebar');
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  const [isDraggingFavicon, setIsDraggingFavicon] = useState(false);
+  const [isProcessingLogo, setIsProcessingLogo] = useState(false);
+  const [isProcessingFavicon, setIsProcessingFavicon] = useState(false);
+  const [logoFileName, setLogoFileName] = useState<string>('');
+  const [faviconFileName, setFaviconFileName] = useState<string>('');
+  const [logoSizeInfo, setLogoSizeInfo] = useState<string>('');
+  const [faviconSizeInfo, setFaviconSizeInfo] = useState<string>('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+
+  const logoFileInputRef = useRef<HTMLInputElement>(null);
+  const faviconFileInputRef = useRef<HTMLInputElement>(null);
+
+  // File Upload Handlers with Automatic Client-side Compression
+  const processImageFile = async (file: File, type: 'logo' | 'favicon') => {
+    setUploadError(null);
+    if (!file.type.startsWith('image/')) {
+      setUploadError('Por favor, selecione um arquivo de imagem válido (PNG, SVG, JPG, WebP ou ICO).');
+      return;
+    }
+
+    if (file.size > 20 * 1024 * 1024) {
+      setUploadError('O arquivo excede o limite máximo de 20MB.');
+      return;
+    }
+
+    try {
+      if (type === 'logo') {
+        setIsProcessingLogo(true);
+        const result = await optimizeImageFile(file, {
+          maxWidth: 600,
+          maxHeight: 180,
+          quality: 0.9,
+          mimeType: 'image/png'
+        });
+        setForm(prev => ({ 
+          ...prev, 
+          logoUrl: result.dataUrl,
+          logoType: prev.logoType === 'text' ? 'combined' : prev.logoType 
+        }));
+        setLogoFileName(file.name);
+        setLogoSizeInfo(`Otimizado: ${formatBytes(result.optimizedSize)} (Original: ${formatBytes(result.originalSize)})`);
+      } else {
+        setIsProcessingFavicon(true);
+        const result = await optimizeImageFile(file, {
+          maxWidth: 64,
+          maxHeight: 64,
+          forceSquare: true,
+          mimeType: 'image/png'
+        });
+        setForm(prev => ({ ...prev, faviconUrl: result.dataUrl }));
+        setFaviconFileName(file.name);
+        setFaviconSizeInfo(`Ícone otimizado: ${formatBytes(result.optimizedSize)}`);
+      }
+    } catch (err: any) {
+      console.error('Error optimizing image:', err);
+      setUploadError(err?.message || 'Erro ao processar e comprimir a imagem.');
+    } finally {
+      setIsProcessingLogo(false);
+      setIsProcessingFavicon(false);
+    }
+  };
+
+  const handleLogoDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingLogo(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processImageFile(e.dataTransfer.files[0], 'logo');
+    }
+  };
+
+  const handleFaviconDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDraggingFavicon(false);
+    if (e.dataTransfer.files && e.dataTransfer.files[0]) {
+      processImageFile(e.dataTransfer.files[0], 'favicon');
+    }
+  };
+
+  const handleLogoFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processImageFile(e.target.files[0], 'logo');
+    }
+  };
+
+  const handleFaviconFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    if (e.target.files && e.target.files[0]) {
+      processImageFile(e.target.files[0], 'favicon');
+    }
+  };
 
   // Presets for quick selection
   const LOGO_PRESETS = [
@@ -90,6 +187,8 @@ export const BrandingCustomizer: React.FC = () => {
     if (window.confirm('Deseja restaurar as configurações padrão de Logo e Favicon da Formação VIP PRO?')) {
       resetBranding();
       setForm({ ...branding });
+      setLogoFileName('');
+      setFaviconFileName('');
       setSaveSuccess(true);
       setTimeout(() => setSaveSuccess(false), 2000);
     }
@@ -106,6 +205,7 @@ export const BrandingCustomizer: React.FC = () => {
       faviconUrl: preset.faviconUrl,
       pageTitle: preset.pageTitle
     }));
+    setLogoFileName('');
   };
 
   return (
@@ -122,7 +222,7 @@ export const BrandingCustomizer: React.FC = () => {
             </h2>
           </div>
           <p className="text-xs text-[#A7AFBF]">
-            Defina a identidade visual, logotipo customizado, favicon do navegador e título da sua plataforma com aplicação instantânea.
+            Faça upload direto do seu logotipo (PNG transparente, SVG ou JPG), defina o favicon do navegador e personalize o título da sua plataforma VIP.
           </p>
         </div>
 
@@ -151,7 +251,15 @@ export const BrandingCustomizer: React.FC = () => {
       {saveSuccess && (
         <div className="p-4 rounded-2xl bg-emerald-500/10 border border-emerald-500/40 text-emerald-400 text-xs font-bold flex items-center gap-2 animate-fadeIn">
           <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
-          <span>Configurações de Logo, Favicon e Título aplicadas com sucesso em todo o sistema!</span>
+          <span>Configurações de Logo por Upload, Favicon e Título aplicadas com sucesso em todo o sistema!</span>
+        </div>
+      )}
+
+      {/* Error Alert */}
+      {uploadError && (
+        <div className="p-4 rounded-2xl bg-rose-500/10 border border-rose-500/40 text-rose-400 text-xs font-bold flex items-center gap-2 animate-fadeIn">
+          <AlertCircle className="w-4 h-4 flex-shrink-0" />
+          <span>{uploadError}</span>
         </div>
       )}
 
@@ -189,24 +297,152 @@ export const BrandingCustomizer: React.FC = () => {
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6">
         {/* Left Column: Form Settings (7 Cols) */}
         <form onSubmit={handleSave} className="lg:col-span-7 space-y-6">
-          {/* Box 1: Logo Settings */}
+          {/* Box 1: Logo Settings & Direct Upload */}
           <div className="p-6 rounded-3xl bg-[#151922] border border-[#1D2230] space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-[#1D2230]">
-              <ImageIcon className="w-5 h-5 text-[#D4AF37]" />
-              <div>
-                <h3 className="text-sm font-bold text-white">Configurações do Logotipo</h3>
-                <p className="text-[11px] text-[#A7AFBF]">Escolha como a logo será exibida no sidebar e na tela de login</p>
+            <div className="flex items-center justify-between pb-3 border-b border-[#1D2230]">
+              <div className="flex items-center gap-2">
+                <ImageIcon className="w-5 h-5 text-[#D4AF37]" />
+                <div>
+                  <h3 className="text-sm font-bold text-white">Upload da Logo Oficial</h3>
+                  <p className="text-[11px] text-[#A7AFBF]">Envie o arquivo do seu logotipo para uso em todo o portal</p>
+                </div>
+              </div>
+              <span className="px-2.5 py-1 rounded-lg bg-[#D4AF37]/10 text-[#D4AF37] text-[10px] font-mono font-bold border border-[#D4AF37]/30">
+                UPLOAD DIRETO
+              </span>
+            </div>
+
+            {/* DRAG & DROP / CLICK UPLOAD ZONE FOR LOGO */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-[#A7AFBF] font-mono uppercase flex items-center justify-between">
+                <span>Arquivo do Logotipo</span>
+                <span className="text-[10px] text-[#D4AF37] font-normal">PNG transparente recomendado</span>
+              </label>
+
+              {/* Hidden file input */}
+              <input
+                ref={logoFileInputRef}
+                type="file"
+                accept="image/png,image/jpeg,image/svg+xml,image/webp,image/gif"
+                onChange={handleLogoFileChange}
+                className="hidden"
+              />
+
+              {/* Drag zone / Upload box */}
+              <div
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingLogo(true); }}
+                onDragLeave={() => setIsDraggingLogo(false)}
+                onDrop={handleLogoDrop}
+                onClick={() => logoFileInputRef.current?.click()}
+                className={`relative p-6 rounded-2xl border-2 border-dashed transition-all duration-200 cursor-pointer flex flex-col items-center justify-center text-center group ${
+                  isDraggingLogo 
+                    ? 'border-[#D4AF37] bg-[#D4AF37]/10 scale-[1.01]' 
+                    : form.logoUrl 
+                      ? 'border-[#D4AF37]/50 bg-[#08090C]/80 hover:border-[#D4AF37]' 
+                      : 'border-[#1D2230] bg-[#0D0F12] hover:border-[#D4AF37]/60 hover:bg-[#151922]'
+                }`}
+              >
+                {isProcessingLogo ? (
+                  <div className="py-6 flex flex-col items-center gap-3">
+                    <RefreshCw className="w-7 h-7 text-[#D4AF37] animate-spin" />
+                    <p className="text-xs font-bold text-white">Otimizando e comprimindo imagem com alta qualidade...</p>
+                  </div>
+                ) : form.logoUrl ? (
+                  <div className="space-y-3 w-full flex flex-col items-center">
+                    {/* Transparent Preview Box */}
+                    <div className="p-4 rounded-xl bg-[radial-gradient(#1D2230_1px,transparent_1px)] [background-size:12px_12px] bg-[#08090C] border border-[#1D2230] max-w-full flex items-center justify-center min-h-[90px] shadow-inner">
+                      <img 
+                        src={form.logoUrl} 
+                        alt="Logo Preview" 
+                        className="max-h-16 max-w-[260px] object-contain"
+                      />
+                    </div>
+
+                    <div className="flex items-center gap-3">
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          logoFileInputRef.current?.click();
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-[#151922] hover:bg-[#1D2230] text-xs font-bold text-white border border-[#1D2230] flex items-center gap-1.5 transition"
+                      >
+                        <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
+                        <span>Trocar Imagem</span>
+                      </button>
+
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setForm(prev => ({ ...prev, logoUrl: '' }));
+                          setLogoFileName('');
+                          setLogoSizeInfo('');
+                        }}
+                        className="px-3.5 py-1.5 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-xs font-bold text-rose-400 border border-rose-500/30 flex items-center gap-1.5 transition"
+                      >
+                        <Trash2 className="w-3.5 h-3.5" />
+                        <span>Remover Logo</span>
+                      </button>
+                    </div>
+
+                    {logoFileName && (
+                      <div className="space-y-0.5 text-center">
+                        <p className="text-[10px] text-white font-mono truncate max-w-xs">
+                          {logoFileName}
+                        </p>
+                        {logoSizeInfo && (
+                          <span className="inline-block px-2 py-0.5 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-mono font-bold border border-emerald-500/30">
+                            ✓ {logoSizeInfo}
+                          </span>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  <div className="space-y-2 py-3">
+                    <div className="w-12 h-12 rounded-2xl bg-[#D4AF37]/10 border border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37] mx-auto group-hover:scale-110 group-hover:border-[#D4AF37] transition">
+                      <Upload className="w-6 h-6" />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-white">
+                        Arraste e solte o arquivo da sua Logo aqui
+                      </p>
+                      <p className="text-[11px] text-[#A7AFBF] mt-0.5">
+                        ou clique para selecionar do seu computador (PNG, SVG, JPG, WebP)
+                      </p>
+                    </div>
+                    <div className="pt-2 flex items-center justify-center gap-2 text-[10px] text-[#D4AF37] font-mono">
+                      <Sparkles className="w-3 h-3" />
+                      <span>Compressão automática inteligente • Fundo transparente suportado</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
 
+            {/* Ou via URL externa opcional */}
+            <div className="space-y-1.5 pt-1">
+              <label className="text-[11px] font-semibold text-[#A7AFBF] flex items-center justify-between">
+                <span>Ou digite uma URL direta da Logo (opcional)</span>
+              </label>
+              <input
+                type="url"
+                placeholder="https://exemplo.com/minha-logo.png"
+                value={form.logoUrl || ''}
+                onChange={(e) => setForm(prev => ({ ...prev, logoUrl: e.target.value }))}
+                className="w-full h-10 px-3.5 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs text-white placeholder:text-[#A7AFBF]/40 focus:outline-none focus:border-[#D4AF37]"
+              />
+            </div>
+
             {/* Logo Type Selector */}
-            <div className="space-y-2">
-              <label className="text-xs font-bold text-[#A7AFBF] font-mono uppercase">Tipo de Exibição da Logo</label>
+            <div className="space-y-2 pt-2">
+              <label className="text-xs font-bold text-[#A7AFBF] font-mono uppercase">Modo de Exibição no Menu</label>
               <div className="grid grid-cols-3 gap-2">
                 {[
-                  { id: 'combined', label: 'Ícone + Texto + Badge', icon: Layers },
-                  { id: 'image', label: 'Imagem Exclusiva (URL)', icon: ImageIcon },
-                  { id: 'text', label: 'Somente Texto & Badge', icon: Type }
+                  { id: 'combined', label: 'Logo / Ícone + Nome + Badge', icon: Layers },
+                  { id: 'image', label: 'Apenas Imagem da Logo', icon: ImageIcon },
+                  { id: 'text', label: 'Apenas Nome & Badge', icon: Type }
                 ].map(t => {
                   const Icon = t.icon;
                   const isSelected = form.logoType === t.id;
@@ -226,32 +462,6 @@ export const BrandingCustomizer: React.FC = () => {
                     </button>
                   );
                 })}
-              </div>
-            </div>
-
-            {/* Logo Image URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#A7AFBF] flex items-center justify-between">
-                <span>URL da Imagem da Logo (PNG, SVG ou WebP transparente)</span>
-                <span className="text-[10px] font-mono text-[#D4AF37]">Opcional</span>
-              </label>
-              <div className="flex gap-2">
-                <input
-                  type="url"
-                  placeholder="https://exemplo.com/minha-logo.png"
-                  value={form.logoUrl || ''}
-                  onChange={(e) => setForm(prev => ({ ...prev, logoUrl: e.target.value }))}
-                  className="flex-1 h-11 px-3.5 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs text-white placeholder:text-[#A7AFBF]/40 focus:outline-none focus:border-[#D4AF37]"
-                />
-                {form.logoUrl && (
-                  <button
-                    type="button"
-                    onClick={() => setForm(prev => ({ ...prev, logoUrl: '' }))}
-                    className="px-3 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-[#A7AFBF] hover:text-rose-400 text-xs font-bold"
-                  >
-                    Limpar
-                  </button>
-                )}
               </div>
             </div>
 
@@ -294,44 +504,111 @@ export const BrandingCustomizer: React.FC = () => {
 
           {/* Box 2: Favicon & Browser Title */}
           <div className="p-6 rounded-3xl bg-[#151922] border border-[#1D2230] space-y-5">
-            <div className="flex items-center gap-2 pb-3 border-b border-[#1D2230]">
-              <Globe className="w-5 h-5 text-[#D4AF37]" />
-              <div>
-                <h3 className="text-sm font-bold text-white">Favicon & Título da Aba</h3>
-                <p className="text-[11px] text-[#A7AFBF]">Configure o ícone e o nome que aparecem na aba do navegador do aluno</p>
+            <div className="flex items-center justify-between pb-3 border-b border-[#1D2230]">
+              <div className="flex items-center gap-2">
+                <Globe className="w-5 h-5 text-[#D4AF37]" />
+                <div>
+                  <h3 className="text-sm font-bold text-white">Favicon & Título da Aba</h3>
+                  <p className="text-[11px] text-[#A7AFBF]">Ícone e texto exibidos na aba do navegador do aluno</p>
+                </div>
               </div>
+              <span className="px-2.5 py-1 rounded-lg bg-emerald-500/10 text-emerald-400 text-[10px] font-mono font-bold border border-emerald-500/30">
+                SINCRONIZAÇÃO REAL
+              </span>
             </div>
 
-            {/* Favicon URL */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-semibold text-[#A7AFBF]">URL do Favicon (.png, .ico, .svg)</label>
-              <div className="flex gap-2">
-                <div className="w-11 h-11 rounded-xl bg-[#08090C] border border-[#1D2230] flex items-center justify-center flex-shrink-0 p-1.5">
-                  {form.faviconUrl ? (
-                    <img src={form.faviconUrl} alt="Favicon" className="w-full h-full object-contain" />
-                  ) : (
-                    <Crown className="w-5 h-5 text-[#D4AF37]" />
-                  )}
-                </div>
-                <input
-                  type="url"
-                  placeholder="https://exemplo.com/favicon.png"
-                  value={form.faviconUrl || ''}
-                  onChange={(e) => setForm(prev => ({ ...prev, faviconUrl: e.target.value }))}
-                  className="flex-1 h-11 px-3.5 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs text-white placeholder:text-[#A7AFBF]/40 focus:outline-none focus:border-[#D4AF37]"
-                />
+            {/* Favicon Upload & URL */}
+            <div className="space-y-3">
+              <label className="text-xs font-semibold text-[#A7AFBF] flex items-center justify-between">
+                <span>Upload do Favicon (.ico, .png, .svg)</span>
+                <span className="text-[10px] font-mono text-[#D4AF37]">Ícone de 32x32 ou 64x64</span>
+              </label>
+
+              {/* Hidden favicon input */}
+              <input
+                ref={faviconFileInputRef}
+                type="file"
+                accept="image/png,image/x-icon,image/svg+xml,image/vnd.microsoft.icon,image/jpeg"
+                onChange={handleFaviconFileChange}
+                className="hidden"
+              />
+
+              <div 
+                onDragOver={(e) => { e.preventDefault(); setIsDraggingFavicon(true); }}
+                onDragLeave={() => setIsDraggingFavicon(false)}
+                onDrop={handleFaviconDrop}
+                onClick={() => faviconFileInputRef.current?.click()}
+                className={`p-4 rounded-2xl border-2 border-dashed transition cursor-pointer flex items-center justify-between gap-4 ${
+                  isDraggingFavicon 
+                    ? 'border-[#D4AF37] bg-[#D4AF37]/10' 
+                    : 'border-[#1D2230] bg-[#0D0F12] hover:border-[#D4AF37]/60'
+                }`}
+              >
+                {isProcessingFavicon ? (
+                  <div className="py-2 flex items-center gap-3 w-full justify-center">
+                    <RefreshCw className="w-5 h-5 text-[#D4AF37] animate-spin" />
+                    <p className="text-xs font-bold text-white">Processando e otimizando Favicon...</p>
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-3">
+                      <div className="w-12 h-12 rounded-xl bg-[#08090C] border border-[#1D2230] flex items-center justify-center flex-shrink-0 p-2 shadow-inner">
+                        {form.faviconUrl ? (
+                          <img src={form.faviconUrl} alt="Favicon" className="w-full h-full object-contain" />
+                        ) : (
+                          <Crown className="w-6 h-6 text-[#D4AF37]" />
+                        )}
+                      </div>
+                      <div>
+                        <p className="text-xs font-bold text-white flex items-center gap-1.5">
+                          <Upload className="w-3.5 h-3.5 text-[#D4AF37]" />
+                          <span>Fazer upload de novo Favicon</span>
+                        </p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <p className="text-[10px] text-[#A7AFBF]">
+                            {faviconFileName || 'Clique ou arraste um arquivo de ícone aqui (.png, .ico, .svg)'}
+                          </p>
+                          {faviconSizeInfo && (
+                            <span className="px-1.5 py-0.2 rounded bg-emerald-500/10 text-emerald-400 text-[9px] font-mono font-bold border border-emerald-500/30">
+                              ✓ {faviconSizeInfo}
+                            </span>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+
+                    {form.faviconUrl && (
+                      <button
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setForm(prev => ({ ...prev, faviconUrl: '' }));
+                          setFaviconFileName('');
+                          setFaviconSizeInfo('');
+                        }}
+                        className="p-2 rounded-xl bg-[#151922] hover:bg-rose-500/20 text-[#A7AFBF] hover:text-rose-400 border border-[#1D2230] transition"
+                        title="Remover favicon"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    )}
+                  </>
+                )}
               </div>
             </div>
 
             {/* Favicon Preset selector */}
             <div className="space-y-2">
-              <label className="text-[10px] font-mono uppercase text-[#A7AFBF]">Galeria de Ícones para Favicon</label>
+              <label className="text-[10px] font-mono uppercase text-[#A7AFBF]">Ou escolha um ícone dourado da galeria:</label>
               <div className="flex flex-wrap gap-2">
                 {FAVICON_PRESETS.map((fav, i) => (
                   <button
                     key={i}
                     type="button"
-                    onClick={() => setForm(prev => ({ ...prev, faviconUrl: fav.url }))}
+                    onClick={() => {
+                      setForm(prev => ({ ...prev, faviconUrl: fav.url }));
+                      setFaviconFileName('');
+                    }}
                     className={`flex items-center gap-2 px-3 py-1.5 rounded-xl border text-xs transition ${
                       form.faviconUrl === fav.url
                         ? 'bg-[#08090C] border-[#D4AF37] text-[#D4AF37]'
@@ -441,14 +718,17 @@ export const BrandingCustomizer: React.FC = () => {
               </div>
 
               {/* Sample Nav items */}
-              <div className="space-y-1 opacity-60">
-                <div className="p-2.5 rounded-xl bg-[#151922] text-xs font-bold text-[#D4AF37] flex items-center gap-2">
-                  <Layout className="w-4 h-4" />
-                  <span>DASHBOARD PRINCIPAL</span>
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[10px] font-bold text-[#607290] uppercase font-mono">
+                  VISÃO GERAL
                 </div>
-                <div className="p-2.5 rounded-xl text-xs font-medium text-[#A7AFBF] flex items-center gap-2">
-                  <Crown className="w-4 h-4" />
-                  <span>MEUS CURSOS & AULAS</span>
+                <div className="px-4 py-2 rounded-2xl bg-[#E5A83B] text-black text-xs font-semibold flex items-center gap-2.5 shadow-md shadow-[#E5A83B]/20">
+                  <LayoutGrid className="w-3.5 h-3.5 text-black" />
+                  <span>Dashboard</span>
+                </div>
+                <div className="px-4 py-2 rounded-2xl text-xs font-medium text-[#8E9BB0] flex items-center gap-2.5">
+                  <Users className="w-3.5 h-3.5 text-[#8E9BB0]" />
+                  <span>Usuários</span>
                 </div>
               </div>
             </div>
@@ -555,7 +835,7 @@ export const BrandingCustomizer: React.FC = () => {
               <span>Dica de Especialista VIP</span>
             </div>
             <p>
-              Ao salvar, a Logo é aplicada automaticamente em todos os componentes da plataforma (Sidebar, Header Mobile, Login e Dashboard), e o Favicon é injetado diretamente na aba do navegador do usuário.
+              Ao fazer upload da logo (formato PNG com fundo transparente), a imagem é gravada e sincronizada instantaneamente na barra lateral (Sidebar), tela de login, cabeçalhos e no favicon da aba do navegador.
             </p>
           </div>
         </div>
@@ -563,3 +843,4 @@ export const BrandingCustomizer: React.FC = () => {
     </div>
   );
 };
+

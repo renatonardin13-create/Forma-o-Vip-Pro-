@@ -1,6 +1,17 @@
 import React from 'react';
 import { 
-  LayoutDashboard, 
+  LayoutGrid,
+  Users, 
+  Layers, 
+  PlusSquare, 
+  BadgePercent, 
+  Palette, 
+  Crown, 
+  Settings, 
+  BarChart3, 
+  HelpCircle, 
+  User, 
+  LogOut, 
   BookOpen, 
   Compass, 
   PlayCircle, 
@@ -8,15 +19,9 @@ import {
   Bookmark, 
   FileText, 
   Award, 
-  Users, 
-  HelpCircle, 
-  User, 
-  Settings, 
-  LogOut, 
-  Crown, 
+  Sparkles,
   ShieldCheck,
-  ChevronRight,
-  Sparkles
+  GraduationCap
 } from 'lucide-react';
 import { useStore } from '../services/store';
 
@@ -49,23 +54,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
   setIsOpenMobile,
   onOpenProfile,
 }) => {
-  const { currentUser, logout, branding } = useStore();
+  const { currentUser, logout, branding, adminTab, setAdminTab } = useStore();
 
-  const navItems = [
-    { id: 'dashboard' as ActiveTab, label: 'DASHBOARD', icon: LayoutDashboard },
-    { id: 'my-courses' as ActiveTab, label: 'MEUS CURSOS', icon: BookOpen },
-    { id: 'all-courses' as ActiveTab, label: 'TODOS OS CURSOS', icon: Compass },
-    { id: 'continue-watching' as ActiveTab, label: 'CONTINUAR ASSISTINDO', icon: PlayCircle },
-    { id: 'tracks' as ActiveTab, label: 'TRILHAS DE APRENDIZADO', icon: Milestone },
-    { id: 'favorites' as ActiveTab, label: 'FAVORITOS', icon: Bookmark },
-    { id: 'materials' as ActiveTab, label: 'MATERIAIS', icon: FileText },
-    { id: 'certificates' as ActiveTab, label: 'CERTIFICADOS', icon: Award },
-    { id: 'community' as ActiveTab, label: 'COMUNIDADE', icon: Users },
-    { id: 'support' as ActiveTab, label: 'SUPORTE', icon: HelpCircle },
-  ];
+  const isAdminRole = currentUser?.role === 'admin';
+  const isInAdminMode = activeTab === 'admin';
 
-  const handleSelect = (tab: ActiveTab) => {
+  // Handle standard navigation
+  const handleSelectTab = (tab: ActiveTab) => {
     setActiveTab(tab);
+    setIsOpenMobile(false);
+  };
+
+  // Handle admin sub-navigation directly from sidebar
+  const handleSelectAdminSubTab = (subTabKey: string) => {
+    setActiveTab('admin');
+    setAdminTab(subTabKey);
     setIsOpenMobile(false);
   };
 
@@ -83,12 +86,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
       {/* Sidebar Container */}
       <aside 
         id="main-sidebar"
-        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#0D0F12] border-r border-[#1D2230] flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
+        className={`fixed top-0 bottom-0 left-0 z-50 w-72 bg-[#0B0F19] border-r border-[#1D2230] flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
           isOpenMobile ? 'translate-x-0' : '-translate-x-full'
         }`}
       >
         {/* Brand Header */}
-        <div className="h-20 flex items-center px-6 border-b border-[#1D2230] bg-gradient-to-b from-[#151922]/40 to-transparent">
+        <div className="h-20 flex items-center px-6 border-b border-[#1D2230] bg-[#0B0F19]">
           <div className="flex items-center gap-3 w-full">
             {branding.logoUrl ? (
               <img 
@@ -97,9 +100,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                 className="max-h-10 max-w-[160px] object-contain rounded-lg"
               />
             ) : (
-              <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37] via-[#AA820A] to-[#6A5005] p-0.5 flex items-center justify-center shadow-lg shadow-[#D4AF37]/20 flex-shrink-0">
-                <div className="w-full h-full bg-[#08090C] rounded-[10px] flex items-center justify-center">
-                  <Crown className="w-5 h-5 text-[#D4AF37]" />
+              <div className="w-10 h-10 rounded-2xl bg-gradient-to-br from-[#E5A83B] via-[#D4AF37] to-[#8C6D1F] p-0.5 flex items-center justify-center shadow-lg shadow-[#E5A83B]/20 flex-shrink-0">
+                <div className="w-full h-full bg-[#08090C] rounded-[14px] flex items-center justify-center">
+                  <Crown className="w-5 h-5 text-[#E5A83B]" />
                 </div>
               </div>
             )}
@@ -111,12 +114,12 @@ export const Sidebar: React.FC<SidebarProps> = ({
                     {branding.brandName || 'FORMAÇÃO'}
                   </span>
                   {branding.brandBadge && (
-                    <span className="font-black text-[10px] px-1.5 py-0.5 rounded bg-[#D4AF37] text-black tracking-widest font-mono font-bold whitespace-nowrap">
+                    <span className="font-black text-[10px] px-1.5 py-0.5 rounded bg-[#E5A83B] text-black tracking-widest font-mono font-bold whitespace-nowrap">
                       {branding.brandBadge}
                     </span>
                   )}
                 </div>
-                <p className="text-[9px] text-[#A7AFBF] tracking-widest font-mono mt-0.5 truncate">
+                <p className="text-[9px] text-[#8E9BB0] tracking-widest font-mono mt-0.5 truncate">
                   {branding.brandSubtext || 'EXCLUSIVE MEMBERSHIP'}
                 </p>
               </div>
@@ -125,95 +128,359 @@ export const Sidebar: React.FC<SidebarProps> = ({
         </div>
 
         {/* Navigation List */}
-        <div className="flex-1 overflow-y-auto px-4 py-5 space-y-1 custom-scrollbar">
-          <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#A7AFBF]/60 font-mono">
-            MENU PRINCIPAL
-          </div>
+        <div className="flex-1 overflow-y-auto px-3.5 py-4 space-y-4 custom-scrollbar">
 
-          {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
+          {/* Mode Switcher Banner if Admin */}
+          {isAdminRole && (
+            <div className="p-1 bg-[#121724] rounded-2xl border border-[#1D2230] flex items-center gap-1">
               <button
-                key={item.id}
-                id={`nav-${item.id}`}
-                onClick={() => handleSelect(item.id)}
-                className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 group ${
-                  isActive
-                    ? 'bg-[#151922] text-white border border-[#D4AF37]/40 shadow-sm shadow-[#D4AF37]/10'
-                    : 'text-[#A7AFBF] hover:text-white hover:bg-[#151922]/60 border border-transparent'
+                type="button"
+                onClick={() => {
+                  if (isInAdminMode) {
+                    handleSelectTab('dashboard');
+                  }
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1.5 ${
+                  !isInAdminMode 
+                    ? 'bg-[#E5A83B] text-black shadow-sm' 
+                    : 'text-[#8E9BB0] hover:text-white'
                 }`}
               >
-                <div className="flex items-center gap-3">
-                  <Icon 
-                    className={`w-4 h-4 transition-colors ${
-                      isActive ? 'text-[#D4AF37]' : 'text-[#A7AFBF] group-hover:text-white'
-                    }`} 
-                  />
-                  <span>{item.label}</span>
-                </div>
-                {isActive && (
-                  <span className="w-1.5 h-1.5 rounded-full bg-[#D4AF37] shadow-sm shadow-[#D4AF37]" />
-                )}
+                <GraduationCap className="w-3.5 h-3.5" />
+                <span>Área Aluno</span>
               </button>
-            );
-          })}
 
-          {/* Admin Section (Prominent if Admin or Quick Switch) */}
-          <div className="pt-4 pb-1">
-            <div className="px-3 pb-2 text-[10px] font-bold tracking-widest text-[#D4AF37]/80 font-mono flex items-center justify-between">
-              <span>ADMINISTRAÇÃO</span>
-              {currentUser?.role === 'admin' && (
-                <span className="text-[9px] bg-[#D4AF37]/20 text-[#D4AF37] px-1.5 py-0.5 rounded border border-[#D4AF37]/40">VIP ROOT</span>
-              )}
+              <button
+                type="button"
+                onClick={() => {
+                  if (!isInAdminMode) {
+                    handleSelectTab('admin');
+                  }
+                }}
+                className={`flex-1 py-1.5 px-2 rounded-xl text-[11px] font-bold transition flex items-center justify-center gap-1.5 ${
+                  isInAdminMode 
+                    ? 'bg-[#E5A83B] text-black shadow-sm' 
+                    : 'text-[#8E9BB0] hover:text-white'
+                }`}
+              >
+                <ShieldCheck className="w-3.5 h-3.5" />
+                <span>Central Admin</span>
+              </button>
             </div>
-            
-            <button
-              id="nav-admin-panel"
-              onClick={() => handleSelect('admin')}
-              className={`w-full flex items-center justify-between px-3.5 py-2.5 rounded-xl text-xs font-semibold tracking-wide transition-all duration-200 group ${
-                activeTab === 'admin'
-                  ? 'bg-gradient-to-r from-[#151922] to-[#1D2230] text-white border border-[#D4AF37] shadow-md shadow-[#D4AF37]/15'
-                  : 'text-[#D4AF37] bg-[#D4AF37]/5 hover:bg-[#D4AF37]/10 border border-[#D4AF37]/20'
-              }`}
-            >
-              <div className="flex items-center gap-3">
-                <ShieldCheck className="w-4 h-4 text-[#D4AF37]" />
-                <span>PAINEL ADMIN</span>
+          )}
+
+          {/* MENU VIEW 1: ADMIN CENTRAL (Matches reference image pixel-perfect) */}
+          {isInAdminMode ? (
+            <div className="space-y-4">
+              {/* SECTION: VISÃO GERAL */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  VISÃO GERAL
+                </div>
+
+                <button
+                  id="admin-nav-dashboard"
+                  onClick={() => handleSelectAdminSubTab('dashboard')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'dashboard'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <LayoutGrid className={`w-4 h-4 flex-shrink-0 ${adminTab === 'dashboard' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Dashboard</span>
+                </button>
+
+                <button
+                  id="admin-nav-users"
+                  onClick={() => handleSelectAdminSubTab('users')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'users'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Users className={`w-4 h-4 flex-shrink-0 ${adminTab === 'users' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Usuários</span>
+                </button>
               </div>
-              <ChevronRight className="w-3.5 h-3.5 text-[#D4AF37]/70" />
-            </button>
-          </div>
+
+              {/* SECTION: CONTEÚDO */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  CONTEÚDO
+                </div>
+
+                <button
+                  id="admin-nav-member-areas"
+                  onClick={() => handleSelectAdminSubTab('courses')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'courses'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Layers className={`w-4 h-4 flex-shrink-0 ${adminTab === 'courses' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Áreas de membros</span>
+                </button>
+
+                <button
+                  id="admin-nav-new-product"
+                  onClick={() => handleSelectAdminSubTab('modules_lessons')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'modules_lessons'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <PlusSquare className={`w-4 h-4 flex-shrink-0 ${adminTab === 'modules_lessons' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Cadastrar produto</span>
+                </button>
+
+                <button
+                  id="admin-nav-offers"
+                  onClick={() => handleSelectAdminSubTab('materials')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'materials'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <BadgePercent className={`w-4 h-4 flex-shrink-0 ${adminTab === 'materials' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Oferta</span>
+                </button>
+              </div>
+
+              {/* SECTION: CONFIGURAÇÕES */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  CONFIGURAÇÕES
+                </div>
+
+                <button
+                  id="admin-nav-login-customizer"
+                  onClick={() => handleSelectAdminSubTab('login_customizer')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'login_customizer'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Palette className={`w-4 h-4 flex-shrink-0 ${adminTab === 'login_customizer' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Tela de Login</span>
+                </button>
+
+                <button
+                  id="admin-nav-branding"
+                  onClick={() => handleSelectAdminSubTab('branding')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    adminTab === 'branding'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Crown className={`w-4 h-4 flex-shrink-0 ${adminTab === 'branding' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Logo & Favicon</span>
+                </button>
+              </div>
+
+              {/* SECTION: FERRAMENTAS */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  FERRAMENTAS
+                </div>
+
+                <button
+                  id="admin-nav-support"
+                  onClick={() => handleSelectTab('support')}
+                  className="w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-medium text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70 transition-all"
+                >
+                  <HelpCircle className="w-4 h-4 flex-shrink-0 text-[#8E9BB0]" />
+                  <span>Suporte & Ajuda</span>
+                </button>
+              </div>
+            </div>
+          ) : (
+            /* MENU VIEW 2: ALUNO / MEMBRO VIP (Same gorgeous golden pill style) */
+            <div className="space-y-4">
+              {/* SECTION: VISÃO GERAL */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  VISÃO GERAL
+                </div>
+
+                <button
+                  id="nav-dashboard"
+                  onClick={() => handleSelectTab('dashboard')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'dashboard'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <LayoutGrid className={`w-4 h-4 flex-shrink-0 ${activeTab === 'dashboard' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Dashboard</span>
+                </button>
+
+                <button
+                  id="nav-my-courses"
+                  onClick={() => handleSelectTab('my-courses')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'my-courses'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <BookOpen className={`w-4 h-4 flex-shrink-0 ${activeTab === 'my-courses' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Meus Cursos</span>
+                </button>
+
+                <button
+                  id="nav-all-courses"
+                  onClick={() => handleSelectTab('all-courses')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'all-courses'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Compass className={`w-4 h-4 flex-shrink-0 ${activeTab === 'all-courses' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Todos os Cursos</span>
+                </button>
+              </div>
+
+              {/* SECTION: CONTEÚDO */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  CONTEÚDO
+                </div>
+
+                <button
+                  id="nav-continue-watching"
+                  onClick={() => handleSelectTab('continue-watching')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'continue-watching'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <PlayCircle className={`w-4 h-4 flex-shrink-0 ${activeTab === 'continue-watching' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Continuar Assistindo</span>
+                </button>
+
+                <button
+                  id="nav-tracks"
+                  onClick={() => handleSelectTab('tracks')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'tracks'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Milestone className={`w-4 h-4 flex-shrink-0 ${activeTab === 'tracks' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Trilhas de Aprendizado</span>
+                </button>
+
+                <button
+                  id="nav-favorites"
+                  onClick={() => handleSelectTab('favorites')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'favorites'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Bookmark className={`w-4 h-4 flex-shrink-0 ${activeTab === 'favorites' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Favoritos</span>
+                </button>
+
+                <button
+                  id="nav-materials"
+                  onClick={() => handleSelectTab('materials')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'materials'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <FileText className={`w-4 h-4 flex-shrink-0 ${activeTab === 'materials' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Materiais & Arquivos</span>
+                </button>
+              </div>
+
+              {/* SECTION: COMUNIDADE & CERTIFICADOS */}
+              <div className="space-y-1">
+                <div className="px-3 pb-1 text-[11px] font-bold tracking-wider text-[#607290] uppercase font-mono">
+                  COMUNIDADE & RECURSOS
+                </div>
+
+                <button
+                  id="nav-community"
+                  onClick={() => handleSelectTab('community')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'community'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Users className={`w-4 h-4 flex-shrink-0 ${activeTab === 'community' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Comunidade VIP</span>
+                </button>
+
+                <button
+                  id="nav-certificates"
+                  onClick={() => handleSelectTab('certificates')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'certificates'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <Award className={`w-4 h-4 flex-shrink-0 ${activeTab === 'certificates' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Certificados</span>
+                </button>
+
+                <button
+                  id="nav-support"
+                  onClick={() => handleSelectTab('support')}
+                  className={`w-full flex items-center gap-3 px-4 py-2.5 rounded-2xl text-sm font-semibold transition-all duration-200 ${
+                    activeTab === 'support'
+                      ? 'bg-[#E5A83B] text-black shadow-md shadow-[#E5A83B]/20'
+                      : 'text-[#8E9BB0] hover:text-white hover:bg-[#151922]/70'
+                  }`}
+                >
+                  <HelpCircle className={`w-4 h-4 flex-shrink-0 ${activeTab === 'support' ? 'text-black' : 'text-[#8E9BB0]'}`} />
+                  <span>Suporte</span>
+                </button>
+              </div>
+            </div>
+          )}
         </div>
 
         {/* User Account Footer */}
-        <div className="p-4 border-t border-[#1D2230] bg-[#08090C]/60">
-          <div className="px-1 pb-2 text-[10px] font-bold tracking-widest text-[#A7AFBF]/60 font-mono">
-            MINHA CONTA
-          </div>
-          
-          <div className="flex items-center gap-3 p-2 rounded-xl bg-[#151922]/70 border border-[#1D2230] hover:border-[#D4AF37]/30 transition-all">
+        <div className="p-4 border-t border-[#1D2230] bg-[#08090C]/80">
+          <div className="flex items-center gap-3 p-2 rounded-2xl bg-[#151922]/70 border border-[#1D2230]">
             <img 
               src={currentUser?.avatar || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80'} 
               alt={currentUser?.name || 'User'} 
-              className="w-9 h-9 rounded-lg object-cover border border-[#D4AF37]/40"
+              className="w-9 h-9 rounded-xl object-cover border border-[#E5A83B]/40"
             />
             <div className="flex-1 min-w-0">
               <p className="text-xs font-bold text-white truncate">{currentUser?.name || 'Membro VIP'}</p>
               <div className="flex items-center gap-1 mt-0.5">
-                <Sparkles className="w-2.5 h-2.5 text-[#D4AF37]" />
-                <span className="text-[10px] text-[#D4AF37] font-medium tracking-wide truncate">
+                <Sparkles className="w-2.5 h-2.5 text-[#E5A83B]" />
+                <span className="text-[10px] text-[#E5A83B] font-semibold tracking-wide truncate">
                   {currentUser?.role === 'admin' ? 'ADMINISTRADOR' : 'MEMBRO VIP'}
                 </span>
               </div>
             </div>
           </div>
 
-          <div className="grid grid-cols-2 gap-1.5 mt-2">
+          <div className="grid grid-cols-2 gap-2 mt-2.5">
             <button
               id="sidebar-btn-profile"
               onClick={onOpenProfile}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium text-[#A7AFBF] bg-[#151922] hover:text-white hover:bg-[#1D2230] border border-[#1D2230] transition"
+              className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-semibold text-[#8E9BB0] bg-[#151922] hover:text-white hover:bg-[#1D2230] border border-[#1D2230] transition"
             >
               <User className="w-3.5 h-3.5" />
               <span>Perfil</span>
@@ -221,7 +488,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
             <button
               id="sidebar-btn-logout"
               onClick={logout}
-              className="flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-lg text-[11px] font-medium text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition"
+              className="flex items-center justify-center gap-1.5 py-2 px-2.5 rounded-xl text-xs font-semibold text-rose-400 bg-rose-500/10 hover:bg-rose-500/20 border border-rose-500/20 transition"
             >
               <LogOut className="w-3.5 h-3.5" />
               <span>Sair</span>
