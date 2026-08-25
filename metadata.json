@@ -1,0 +1,6 @@
+{
+  "name": "Formação VIP Pro",
+  "description": "Plataforma de Área de Membros Premium para hospedagem e gestão de cursos, videoaulas, módulos, materiais e conteúdos exclusivos.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

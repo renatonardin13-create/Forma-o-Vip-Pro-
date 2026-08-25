@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="pt-BR" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Formação VIP Pro — Área de Membros Premium</title>
+    <meta name="description" content="Plataforma exclusiva de cursos, videoaulas e materiais de alta performance." />
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=Cinzel:wght@600;700;800;900&display=swap" rel="stylesheet">
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script>
+      tailwind.config = {
+        darkMode: 'class',
+        theme: {
+          extend: {
+            colors: {
+              vip: {
+                dark: '#08090C',
+                sec: '#0D0F12',
+                card: '#151922',
+                cardHover: '#1A202C',
+                border: '#1D2230',
+                borderHover: '#2A3245',
+                gold: '#D4AF37',
+                goldLight: '#F5D76E',
+                goldDark: '#AA820A',
+                muted: '#A7AFBF',
+                white: '#FFFFFF',
+              }
+            },
+            fontFamily: {
+              sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+              display: ['"Cinzel"', 'serif'],
+            },
+            boxShadow: {
+              'gold-glow': '0 0 25px -5px rgba(212, 175, 55, 0.25)',
+              'gold-glow-lg': '0 0 35px -3px rgba(212, 175, 55, 0.4)',
+              'card-dark': '0 10px 30px -10px rgba(0, 0, 0, 0.7)',
+            }
+          }
+        }
+      }
+    </script>
+    <style>
+      body {
+        background-color: #08090C;
+        color: #FFFFFF;
+        font-family: 'Plus Jakarta Sans', sans-serif;
+        overflow-x: hidden;
+      }
+      /* Custom luxury scrollbar */
+      ::-webkit-scrollbar {
+        width: 6px;
+        height: 6px;
+      }
+      ::-webkit-scrollbar-track {
+        background: #0D0F12;
+      }
+      ::-webkit-scrollbar-thumb {
+        background: #1D2230;
+        border-radius: 9999px;
+      }
+      ::-webkit-scrollbar-thumb:hover {
+        background: #D4AF37;
+      }
+    </style>
+  </head>
+  <body class="bg-[#08090C] text-white antialiased selection:bg-[#D4AF37] selection:text-black">
+    <div id="root"></div>
+    <script type="module" src="/src/main.tsx"></script>
+  </body>
+</html>
+
