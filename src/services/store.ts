@@ -10,7 +10,10 @@ import {
   CommunityPost, 
   LoginCustomization,
   Material,
-  BrandingConfig
+  BrandingConfig,
+  Matricula,
+  ProdutoCursoMapping,
+  WebhookLogRecord
 } from '../types';
 import { 
   INITIAL_USER, 
@@ -21,7 +24,10 @@ import {
   INITIAL_LEARNING_TRACKS, 
   INITIAL_COMMUNITY_POSTS, 
   INITIAL_LOGIN_CUSTOMIZATION,
-  INITIAL_BRANDING
+  INITIAL_BRANDING,
+  INITIAL_PRODUTOS_CURSOS,
+  INITIAL_MATRICULAS,
+  INITIAL_WEBHOOK_LOGS
 } from '../data/mockData';
 
 const STORAGE_KEYS = {
@@ -35,6 +41,9 @@ const STORAGE_KEYS = {
   LOGIN_CONFIG: 'vip_pro_login_config',
   FAVORITES: 'vip_pro_favorites',
   BRANDING: 'vip_pro_branding',
+  MATRICULAS: 'vip_pro_matriculas',
+  PRODUTOS_CURSOS: 'vip_pro_produtos_cursos',
+  WEBHOOK_LOGS: 'vip_pro_webhook_logs',
 };
 
 // DOM synchronization helper for dynamic favicon and page title
@@ -100,6 +109,9 @@ class StoreManager {
   private loginConfig: LoginCustomization;
   private favoriteCourseIds: string[];
   private branding: BrandingConfig;
+  private matriculas: Matricula[];
+  private produtosCursos: ProdutoCursoMapping[];
+  private webhookLogs: WebhookLogRecord[];
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
 
@@ -107,6 +119,9 @@ class StoreManager {
     this.currentUser = loadStorage<User | null>(STORAGE_KEYS.CURRENT_USER, INITIAL_USER);
     this.users = loadStorage<User[]>(STORAGE_KEYS.USERS_LIST, INITIAL_USERS_LIST);
     this.courses = loadStorage<Course[]>(STORAGE_KEYS.COURSES, INITIAL_COURSES);
+    this.matriculas = loadStorage<Matricula[]>(STORAGE_KEYS.MATRICULAS, INITIAL_MATRICULAS);
+    this.produtosCursos = loadStorage<ProdutoCursoMapping[]>(STORAGE_KEYS.PRODUTOS_CURSOS, INITIAL_PRODUTOS_CURSOS);
+    this.webhookLogs = loadStorage<WebhookLogRecord[]>(STORAGE_KEYS.WEBHOOK_LOGS, INITIAL_WEBHOOK_LOGS);
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
       [`${INITIAL_USER.id}_course-negocios-digitais`]: {
         courseId: 'course-negocios-digitais',
@@ -651,6 +666,252 @@ class StoreManager {
     this.adminTab = tab;
     this.notify();
   }
+
+  // Matrículas & Access Control
+  public getMatriculas(): Matricula[] {
+    return this.matriculas;
+  }
+
+  public getMatriculasForUser(userId: string): Matricula[] {
+    return this.matriculas.filter(m => m.user_id === userId);
+  }
+
+  public saveMatricula(matricula: Matricula): void {
+    const idx = this.matriculas.findIndex(m => m.id === matricula.id || (m.user_id === matricula.user_id && m.curso_id === matricula.curso_id));
+    if (idx >= 0) {
+      this.matriculas[idx] = { ...this.matriculas[idx], ...matricula, updated_at: new Date().toISOString() };
+    } else {
+      this.matriculas.unshift({ ...matricula, created_at: new Date().toISOString(), updated_at: new Date().toISOString() });
+    }
+    saveStorage(STORAGE_KEYS.MATRICULAS, this.matriculas);
+    this.notify();
+  }
+
+  public updateMatriculaStatus(id: string, status: 'ativo' | 'revogado' | 'reembolsado' | 'bloqueado'): void {
+    this.matriculas = this.matriculas.map(m => m.id === id ? { ...m, status, updated_at: new Date().toISOString() } : m);
+    saveStorage(STORAGE_KEYS.MATRICULAS, this.matriculas);
+    this.notify();
+  }
+
+  // Produtos x Cursos Mapping
+  public getProdutosCursos(): ProdutoCursoMapping[] {
+    return this.produtosCursos;
+  }
+
+  public saveProdutoCursoMapping(mapping: ProdutoCursoMapping): void {
+    const idx = this.produtosCursos.findIndex(m => m.id === mapping.id);
+    if (idx >= 0) {
+      this.produtosCursos[idx] = { ...mapping };
+    } else {
+      this.produtosCursos.unshift({ ...mapping, id: mapping.id || `map_${Date.now()}`, created_at: new Date().toISOString() });
+    }
+    saveStorage(STORAGE_KEYS.PRODUTOS_CURSOS, this.produtosCursos);
+    this.notify();
+  }
+
+  public deleteProdutoCursoMapping(id: string): void {
+    this.produtosCursos = this.produtosCursos.filter(m => m.id !== id);
+    saveStorage(STORAGE_KEYS.PRODUTOS_CURSOS, this.produtosCursos);
+    this.notify();
+  }
+
+  // Webhook Logs
+  public getWebhookLogs(): WebhookLogRecord[] {
+    return this.webhookLogs;
+  }
+
+  public addWebhookLog(log: WebhookLogRecord): void {
+    this.webhookLogs.unshift(log);
+    if (this.webhookLogs.length > 50) {
+      this.webhookLogs = this.webhookLogs.slice(0, 50);
+    }
+    saveStorage(STORAGE_KEYS.WEBHOOK_LOGS, this.webhookLogs);
+    this.notify();
+  }
+
+  public clearWebhookLogs(): void {
+    this.webhookLogs = [];
+    saveStorage(STORAGE_KEYS.WEBHOOK_LOGS, this.webhookLogs);
+    this.notify();
+  }
+
+  // Password reset for first access (precisa_trocar_senha)
+  public completeFirstAccessPasswordChange(newPassword: string): void {
+    if (!this.currentUser) return;
+    const updated = { ...this.currentUser, precisa_trocar_senha: false };
+    this.currentUser = updated;
+    this.users = this.users.map(u => u.id === updated.id ? { ...u, precisa_trocar_senha: false } : u);
+    saveStorage(STORAGE_KEYS.CURRENT_USER, this.currentUser);
+    saveStorage(STORAGE_KEYS.USERS_LIST, this.users);
+    this.notify();
+  }
+
+  // Simulate or process Webhook Execution
+  public processWebhookSimulation(params: {
+    platform: 'kiwify' | 'perfectpay';
+    eventType: 'approved' | 'refund' | 'chargeback' | 'invalid_token' | 'waiting_payment';
+    buyerEmail: string;
+    buyerName: string;
+    productId: string;
+    productName: string;
+    token?: string;
+  }): { success: boolean; message: string; log: WebhookLogRecord; userCreated?: boolean; tempPassword?: string } {
+    const { platform, eventType, buyerEmail, buyerName, productId, productName, token } = params;
+    const cleanEmail = buyerEmail.trim().toLowerCase();
+    const cleanName = buyerName.trim() || cleanEmail.split('@')[0];
+
+    // Security validation test
+    const expectedToken = platform === 'kiwify' ? 'kiwify_sec_live_example_token_9912' : 'pp_sec_live_9a87f2e1c4d5b6a0';
+    if (eventType === 'invalid_token' || (token && token !== expectedToken)) {
+      const errorLog: WebhookLogRecord = {
+        id: `log_${Date.now()}`,
+        plataforma: platform,
+        evento: 'unauthorized',
+        email_comprador: cleanEmail,
+        nome_comprador: cleanName,
+        produto_id: productId,
+        produto_nome: productName,
+        status_processamento: 'erro',
+        sucesso: false,
+        mensagem_detalhe: '401 Unauthorized: Token de segurança inválido ou ausente.',
+        payload_bruto: { token: token || 'INVALID', platform },
+        created_at: 'Agora mesmo'
+      };
+      this.addWebhookLog(errorLog);
+      return { success: false, message: 'Rejeitado com status 401 Unauthorized (Token Inválido).', log: errorLog };
+    }
+
+    if (eventType === 'waiting_payment') {
+      const waitLog: WebhookLogRecord = {
+        id: `log_${Date.now()}`,
+        plataforma: platform,
+        evento: 'aguardando_pagamento',
+        email_comprador: cleanEmail,
+        nome_comprador: cleanName,
+        produto_id: productId,
+        produto_nome: productName,
+        status_processamento: 'ignorado',
+        sucesso: true,
+        mensagem_detalhe: 'Boleto/PIX gerado. Evento registrado sem conceder acesso até aprovação.',
+        payload_bruto: { status: 'waiting_payment', platform, email: cleanEmail },
+        created_at: 'Agora mesmo'
+      };
+      this.addWebhookLog(waitLog);
+      return { success: true, message: 'Evento logado (sem liberação de acesso até confirmação).', log: waitLog };
+    }
+
+    if (eventType === 'refund' || eventType === 'chargeback') {
+      const targetUser = this.users.find(u => u.email.toLowerCase() === cleanEmail);
+      if (targetUser) {
+        this.matriculas = this.matriculas.map(m => {
+          if (m.user_id === targetUser.id) {
+            return { ...m, status: eventType === 'chargeback' ? 'revogado' : 'reembolsado' };
+          }
+          return m;
+        });
+        saveStorage(STORAGE_KEYS.MATRICULAS, this.matriculas);
+      }
+      const revokeLog: WebhookLogRecord = {
+        id: `log_${Date.now()}`,
+        plataforma: platform,
+        evento: eventType,
+        email_comprador: cleanEmail,
+        nome_comprador: cleanName,
+        produto_id: productId,
+        produto_nome: productName,
+        status_processamento: 'revogado',
+        sucesso: true,
+        mensagem_detalhe: `Acesso do aluno ${cleanEmail} revogado com sucesso devido a ${eventType}. Matrícula inativada.`,
+        payload_bruto: { status: eventType, customer: { email: cleanEmail, name: cleanName }, product: { id: productId, name: productName } },
+        created_at: 'Agora mesmo'
+      };
+      this.addWebhookLog(revokeLog);
+      return { success: true, message: `Acesso revogado com sucesso para ${cleanEmail}.`, log: revokeLog };
+    }
+
+    // Approved purchase
+    // 1. Map to course
+    const mapping = this.produtosCursos.find(m => m.produto_id === productId || m.produto_nome.toLowerCase().includes(productName.toLowerCase()));
+    const courseId = mapping ? mapping.curso_id : 'course-negocios-digitais';
+    const courseName = mapping ? mapping.curso_nome : (productName || 'Formação VIP PRO');
+
+    // 2. Find or create user
+    let user = this.users.find(u => u.email.toLowerCase() === cleanEmail);
+    let userCreated = false;
+    let tempPassword = '';
+
+    if (!user) {
+      userCreated = true;
+      tempPassword = 'Vip#' + Math.floor(100000 + Math.random() * 900000) + '!';
+      user = {
+        id: `usr_${Date.now()}`,
+        name: cleanName,
+        email: cleanEmail,
+        avatar: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
+        role: 'student',
+        plan: 'MEMBRO VIP (WEBHOOK)',
+        registeredAt: new Date().toISOString().split('T')[0],
+        lastAccessAt: 'Nunca acessou',
+        status: 'active',
+        precisa_trocar_senha: true,
+        stats: {
+          activeCourses: 1,
+          completedLessons: 0,
+          studyTimeMinutes: 0,
+          certificatesCount: 0
+        }
+      };
+      this.users.unshift(user);
+      saveStorage(STORAGE_KEYS.USERS_LIST, this.users);
+    }
+
+    // 3. Register matricula
+    const newMatricula: Matricula = {
+      id: `mat_${Date.now()}`,
+      user_id: user.id,
+      produto_id: productId,
+      produto_nome: productName,
+      curso_id: courseId,
+      curso_nome: courseName,
+      plataforma_origem: platform,
+      status: 'ativo',
+      data_liberacao: new Date().toISOString()
+    };
+    this.saveMatricula(newMatricula);
+
+    // 4. Log
+    const successLog: WebhookLogRecord = {
+      id: `log_${Date.now()}`,
+      plataforma: platform,
+      evento: 'compra_aprovada',
+      email_comprador: cleanEmail,
+      nome_comprador: cleanName,
+      produto_id: productId,
+      produto_nome: productName,
+      status_processamento: 'sucesso',
+      sucesso: true,
+      mensagem_detalhe: userCreated
+        ? `Novo aluno criado no Supabase Auth. Senha provisória gerada (${tempPassword}). Matrícula liberada para '${courseName}'. E-mail de boas-vindas enviado via Resend.`
+        : `Aluno já existente. Matrícula adicional vinculada ao curso '${courseName}'.`,
+      payload_bruto: {
+        event: 'compra_aprovada',
+        platform,
+        product: { id: productId, name: productName },
+        customer: { email: cleanEmail, name: cleanName },
+        token: expectedToken
+      },
+      created_at: 'Agora mesmo'
+    };
+    this.addWebhookLog(successLog);
+
+    return {
+      success: true,
+      message: `Acesso liberado com sucesso para ${cleanEmail} no curso ${courseName}!`,
+      log: successLog,
+      userCreated,
+      tempPassword
+    };
+  }
 }
 
 export const store = new StoreManager();
@@ -677,6 +938,18 @@ export function useStore() {
     loginConfig: store.getLoginConfig(),
     branding: store.getBrandingConfig(),
     favorites: store.getFavorites(),
+    matriculas: store.getMatriculas(),
+    produtosCursos: store.getProdutosCursos(),
+    webhookLogs: store.getWebhookLogs(),
+    getMatriculasForUser: (userId: string) => store.getMatriculasForUser(userId),
+    saveMatricula: (matricula: Matricula) => store.saveMatricula(matricula),
+    updateMatriculaStatus: (id: string, status: 'ativo' | 'revogado' | 'reembolsado' | 'bloqueado') => store.updateMatriculaStatus(id, status),
+    saveProdutoCursoMapping: (mapping: ProdutoCursoMapping) => store.saveProdutoCursoMapping(mapping),
+    deleteProdutoCursoMapping: (id: string) => store.deleteProdutoCursoMapping(id),
+    addWebhookLog: (log: WebhookLogRecord) => store.addWebhookLog(log),
+    clearWebhookLogs: () => store.clearWebhookLogs(),
+    completeFirstAccessPasswordChange: (newPassword: string) => store.completeFirstAccessPasswordChange(newPassword),
+    processWebhookSimulation: (params: Parameters<typeof store.processWebhookSimulation>[0]) => store.processWebhookSimulation(params),
     getCourse: (courseId: string) => store.getCourse(courseId),
     isFavorite: (courseId: string) => store.isFavorite(courseId),
     toggleFavorite: (courseId: string) => store.toggleFavorite(courseId),

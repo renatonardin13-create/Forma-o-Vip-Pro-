@@ -18,6 +18,7 @@ export interface User {
   lastAccessAt: string;
   status: 'active' | 'blocked';
   stats: UserStats;
+  precisa_trocar_senha?: boolean;
 }
 
 export type MaterialType = 'PDF' | 'ZIP' | 'DOC' | 'XLSX' | 'PPT' | 'LINK';
@@ -155,4 +156,44 @@ export interface BrandingConfig {
   brandSubtext: string;
   faviconUrl: string;
   pageTitle: string;
+}
+
+export interface Matricula {
+  id: string;
+  user_id: string;
+  produto_id?: string;
+  produto_nome?: string;
+  curso_id: string;
+  curso_nome?: string;
+  plataforma_origem: 'kiwify' | 'perfectpay' | 'hotmart' | 'eduzz' | 'manual';
+  status: 'ativo' | 'revogado' | 'reembolsado' | 'bloqueado';
+  data_liberacao: string;
+  created_at?: string;
+  updated_at?: string;
+}
+
+export interface ProdutoCursoMapping {
+  id: string;
+  produto_id: string;
+  produto_nome: string;
+  curso_id: string;
+  curso_nome: string;
+  plataforma: 'kiwify' | 'perfectpay' | 'todas';
+  ativo: boolean;
+  created_at?: string;
+}
+
+export interface WebhookLogRecord {
+  id: string;
+  plataforma: string;
+  evento: string;
+  email_comprador: string;
+  nome_comprador: string;
+  produto_id?: string;
+  produto_nome?: string;
+  status_processamento: 'sucesso' | 'erro' | 'ignorado' | 'revogado';
+  sucesso: boolean;
+  mensagem_detalhe: string;
+  payload_bruto: any;
+  created_at: string;
 }

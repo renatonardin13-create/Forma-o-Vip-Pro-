@@ -14,6 +14,7 @@ import { SupportView } from './components/SupportView';
 import { AdminPanel } from './components/AdminPanel';
 import { LoginScreen } from './components/LoginScreen';
 import { UserProfileModal } from './components/UserProfileModal';
+import { FirstLoginPasswordModal } from './components/FirstLoginPasswordModal';
 
 export default function App() {
   const { currentUser, logout } = useStore();
@@ -199,6 +200,9 @@ export default function App() {
       {showProfileModal && (
         <UserProfileModal onClose={() => setShowProfileModal(false)} />
       )}
+
+      {/* Forced Password Reset on First Access Modal */}
+      <FirstLoginPasswordModal />
     </div>
   );
 }

@@ -1,4 +1,4 @@
-import { Course, LearningTrack, Certificate, CommunityPost, LoginCustomization, User, BrandingConfig } from '../types';
+import { Course, LearningTrack, Certificate, CommunityPost, LoginCustomization, User, BrandingConfig, ProdutoCursoMapping, Matricula, WebhookLogRecord } from '../types';
 
 export const INITIAL_BRANDING: BrandingConfig = {
   logoUrl: '',
@@ -651,3 +651,112 @@ export const INITIAL_LOGIN_CUSTOMIZATION: LoginCustomization = {
   cardBlur: 16,
   cardBorderRadius: 16
 };
+
+export const INITIAL_PRODUTOS_CURSOS: ProdutoCursoMapping[] = [
+  {
+    id: 'map_01',
+    produto_id: 'PPA882194',
+    produto_nome: 'Formação VIP PRO Master - Vitalício',
+    curso_id: 'course-negocios-digitais',
+    curso_nome: 'Formação VIP PRO: Estratégias & Escala Digital',
+    plataforma: 'perfectpay',
+    ativo: true,
+    created_at: '2025-01-10'
+  },
+  {
+    id: 'map_02',
+    produto_id: 'PPA773102',
+    produto_nome: 'Clube Black VIP Anual',
+    curso_id: 'course-vsl-milionaria',
+    curso_nome: 'Copywriting & VSLs de Alta Conversão',
+    plataforma: 'perfectpay',
+    ativo: true,
+    created_at: '2025-01-15'
+  },
+  {
+    id: 'map_03',
+    produto_id: 'KW-PROD-991',
+    produto_nome: 'Mentoria Tráfego Escala 100k',
+    curso_id: 'course-trafego-pago-mastery',
+    curso_nome: 'Tráfego Pago de Alta Performance',
+    plataforma: 'kiwify',
+    ativo: true,
+    created_at: '2025-02-01'
+  },
+  {
+    id: 'map_04',
+    produto_id: 'KW-PROD-105',
+    produto_nome: 'Design & UI/UX para Infoprodutos',
+    curso_id: 'course-ui-ux-design',
+    curso_nome: 'Design & Interfaces de Alta Conversão',
+    plataforma: 'kiwify',
+    ativo: true,
+    created_at: '2025-02-12'
+  }
+];
+
+export const INITIAL_MATRICULAS: Matricula[] = [
+  {
+    id: 'mat_01',
+    user_id: 'usr_renato_01',
+    produto_id: 'PPA882194',
+    produto_nome: 'Formação VIP PRO Master',
+    curso_id: 'course-negocios-digitais',
+    curso_nome: 'Formação VIP PRO: Estratégias & Escala Digital',
+    plataforma_origem: 'perfectpay',
+    status: 'ativo',
+    data_liberacao: '2025-01-15 14:32:00'
+  },
+  {
+    id: 'mat_02',
+    user_id: 'usr_camila_02',
+    produto_id: 'KW-PROD-991',
+    produto_nome: 'Mentoria Tráfego Escala 100k',
+    curso_id: 'course-trafego-pago-mastery',
+    curso_nome: 'Tráfego Pago de Alta Performance',
+    plataforma_origem: 'kiwify',
+    status: 'ativo',
+    data_liberacao: '2025-02-10 10:15:00'
+  }
+];
+
+export const INITIAL_WEBHOOK_LOGS: WebhookLogRecord[] = [
+  {
+    id: 'log_01',
+    plataforma: 'perfectpay',
+    evento: 'compra_aprovada',
+    email_comprador: 'rodrigo.medeiros@gmail.com',
+    nome_comprador: 'Rodrigo Medeiros',
+    produto_id: 'PPA882194',
+    produto_nome: 'Formação VIP PRO Master',
+    status_processamento: 'sucesso',
+    sucesso: true,
+    mensagem_detalhe: 'Acesso liberado com sucesso para curso Formação VIP PRO. E-mail de boas-vindas com senha temporária disparado via Resend.',
+    payload_bruto: {
+      sale_status_enum: 'approved',
+      token: 'pp_sec_live_9a87f2e1c4d5b6a0',
+      product: { code: 'PPA882194', name: 'Formação VIP PRO Master' },
+      customer: { name: 'Rodrigo Medeiros', email: 'rodrigo.medeiros@gmail.com' }
+    },
+    created_at: 'Hoje, às 14:32:10'
+  },
+  {
+    id: 'log_02',
+    plataforma: 'kiwify',
+    evento: 'compra_aprovada',
+    email_comprador: 'mariana.silva@exemplo.com.br',
+    nome_comprador: 'Mariana Silva',
+    produto_id: 'KW-PROD-991',
+    produto_nome: 'Mentoria Tráfego Escala 100k',
+    status_processamento: 'sucesso',
+    sucesso: true,
+    mensagem_detalhe: 'Matrícula ativada para aluna existente no Supabase. Curso Tráfego Pago liberado.',
+    payload_bruto: {
+      order_status: 'paid',
+      signature: 'kiwify_sec_live_example_token_9912',
+      Product: { product_id: 'KW-PROD-991', product_name: 'Mentoria Tráfego Escala 100k' },
+      Customer: { full_name: 'Mariana Silva', email: 'mariana.silva@exemplo.com.br' }
+    },
+    created_at: 'Hoje, às 11:15:45'
+  }
+];
