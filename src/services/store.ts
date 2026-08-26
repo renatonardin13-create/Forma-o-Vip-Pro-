@@ -1282,13 +1282,13 @@ class StoreManager {
     const user = this.users.find(u => u.id === userId);
     if (user && user.role === 'admin') return true;
 
-    // Check explicit user_area_access with productId
+    // Check explicit user_area_access with specific productId
     const hasExplicit = this.userAreaAccesses.some(
       acc => acc.userId === userId && acc.productId === productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
     );
     if (hasExplicit) return true;
 
-    // Check matriculas
+    // Check matriculas for specific product or course
     const product = this.digitalProducts.find(p => p.id === productId);
     if (!product) return false;
 
@@ -1296,12 +1296,7 @@ class StoreManager {
     if (product.courseId && userMatriculas.some(m => m.curso_id === product.courseId)) return true;
     if (userMatriculas.some(m => m.produto_id === productId)) return true;
 
-    // Check if user has general area access for this product's area without specific product restriction
-    const hasAreaWideAccess = this.userAreaAccesses.some(
-      acc => acc.userId === userId && acc.areaId === product.areaId && acc.status === 'active' && (!acc.productId || acc.productId === productId) && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
-    );
-
-    return hasAreaWideAccess;
+    return false;
   }
 
   public grantUserAreaAccess(data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }): UserAreaAccess {
