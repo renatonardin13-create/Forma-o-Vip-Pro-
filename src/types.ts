@@ -326,7 +326,9 @@ export interface DigitalProduct {
   badge?: string;
   accessLevel?: 'free' | 'vip' | 'restricted';
   price?: number;
+  salesStrategy?: 'sales_page' | 'presell' | 'modal';
   salesPageUrl?: string;
+  presellUrl?: string;
   checkoutUrl?: string;
   autoLiberarAposCompra?: boolean;
 }

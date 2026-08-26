@@ -64,6 +64,16 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
   const [selectedProductForSale, setSelectedProductForSale] = useState<DigitalProduct | null>(null);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
+  const handleLockedProductClick = (product: DigitalProduct) => {
+    if (product.salesStrategy === 'sales_page' && product.salesPageUrl) {
+      window.open(product.salesPageUrl, '_blank');
+    } else if (product.salesStrategy === 'presell' && product.presellUrl) {
+      window.open(product.presellUrl, '_blank');
+    } else {
+      setSelectedProductForSale(product);
+    }
+  };
+
   const primaryColor = area.primaryColor || '#D4AF37';
 
   // Products belonging to this area
@@ -493,7 +503,7 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
                     </button>
                   ) : (
                     <button
-                      onClick={() => setSelectedProductForSale(product)}
+                      onClick={() => handleLockedProductClick(product)}
                       className="w-full py-3 px-4 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] hover:from-[#e5bc3b] hover:to-[#ffd556] text-black font-black text-xs flex items-center justify-center gap-2 shadow-lg shadow-[#D4AF37]/20 transition-all transform hover:scale-[1.02]"
                     >
                       <span>VER OFERTA</span>

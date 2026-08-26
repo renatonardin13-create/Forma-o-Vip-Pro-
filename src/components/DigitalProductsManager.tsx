@@ -586,7 +586,85 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                 </div>
               </div>
 
-              {/* CONDITIONAL FIELDS BY PRODUCT TYPE */}
+              {/* COMMERCIAL & SALES STRATEGY CONFIG */}
+              <div className="p-4 bg-[#151922] rounded-xl border border-[#222738] space-y-4">
+                <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2">
+                  <Sparkles className="w-4 h-4" />
+                  Estratégia Comercial & Upsell (Para alunos sem acesso)
+                </h4>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Estratégia de Venda ao Clicar em "Ver Oferta"
+                    </label>
+                    <select
+                      value={editingProduct.salesStrategy || 'modal'}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, salesStrategy: e.target.value as any }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    >
+                      <option value="modal">Modal de Oferta (Padrão Formação VIP)</option>
+                      <option value="sales_page">Página de Vendas Externa</option>
+                      <option value="presell">Página de Pré-Sell / VSL</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Preço de Referência (R$)
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      placeholder="97.00"
+                      value={editingProduct.price || ''}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, price: Number(e.target.value) }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Sales Page URL (Página de Vendas)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://pay.hotmart.com/..."
+                      value={editingProduct.salesPageUrl || ''}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, salesPageUrl: e.target.value }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Pre-Sell URL (Página Intermediária)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://meusite.com/presell-produto"
+                      value={editingProduct.presellUrl || ''}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, presellUrl: e.target.value }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Checkout URL (Link Direto de Compra)
+                    </label>
+                    <input
+                      type="url"
+                      placeholder="https://checkout.../checkout"
+                      value={editingProduct.checkoutUrl || ''}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, checkoutUrl: e.target.value }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    />
+                  </div>
+                </div>
+              </div>
               {/* 1. CURSO */}
               {editingProduct.type === 'curso' && (
                 <div className="p-4 bg-[#151922] rounded-xl border border-[#222738] space-y-4">
