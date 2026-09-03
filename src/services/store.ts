@@ -250,6 +250,14 @@ class StoreManager {
     return this.favoriteCourseIds;
   }
 
+  public isAuthInitialized(): boolean {
+    return this.authInitialized;
+  }
+
+  public isAccessesLoaded(): boolean {
+    return this.accessesLoaded;
+  }
+
   public isFavorite(courseId: string): boolean {
     return this.favoriteCourseIds.includes(courseId);
   }
@@ -1873,6 +1881,8 @@ export function useStore() {
     hasProductAccess: (userId: string, productId: string) => store.hasProductAccess(userId, productId),
     initializeAuth: () => store.initializeAuth(),
     initializeProducts: () => store.initializeProducts(),
+    isAuthInitialized: store.isAuthInitialized(),
+    accessesLoaded: store.isAccessesLoaded(),
     isSupabaseEnabled: isSupabaseConfigured(),
     grantUserAreaAccess: (data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }) => 
       store.grantUserAreaAccess(data),

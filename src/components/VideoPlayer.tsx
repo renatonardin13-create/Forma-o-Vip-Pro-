@@ -18,7 +18,10 @@ import {
   ExternalLink,
   ChevronDown,
   ChevronUp,
-  Bookmark
+  Bookmark,
+  Lock,
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { Course, Lesson, Material } from '../types';
@@ -47,10 +50,27 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
     saveLessonNote,
     getLessonNote,
     isFavorite,
-    toggleFavorite
+    toggleFavorite,
+    currentUser,
+    hasProductAccess,
+    accessesLoaded,
+    digitalProducts,
+    matriculas
   } = useStore();
 
   const course = getCourse(courseId);
+  
+  // Authorization check (Defense in Depth)
+  // 1. Identify associated product if exists
+  const associatedProduct = digitalProducts.find(p => p.courseId === courseId);
+  
+  // 2. Determine access
+  const canAccess = currentUser ? (
+    currentUser.role === 'admin' || 
+    (associatedProduct ? hasProductAccess(currentUser.id, associatedProduct.id) : false) ||
+    matriculas.some(m => m.user_id === currentUser.id && m.curso_id === courseId && m.status === 'ativo')
+  ) : false;
+
   const [activeTab, setActiveTab] = useState<'desc' | 'materials' | 'notes' | 'comments'>('desc');
   const [playlistSearch, setPlaylistSearch] = useState('');
   const [studentNote, setStudentNote] = useState('');
@@ -96,6 +116,50 @@ export const VideoPlayer: React.FC<VideoPlayerProps> = ({
       }));
     }
   }, [courseId, lessonId]);
+
+  if (!accessesLoaded) {
+    return (
+      <div className="min-h-[60vh] flex flex-col items-center justify-center p-8 text-center animate-in fade-in">
+        <Loader2 className="w-10 h-10 text-[#D4AF37] animate-spin mb-4" />
+        <p className="text-gray-400 font-medium">Validando suas credenciais de acesso...</p>
+      </div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="min-h-[70vh] flex items-center justify-center p-4 sm:p-8 animate-in fade-in">
+        <div className="max-w-xl w-full bg-[#0D0F12] border border-[#1D2230] rounded-3xl p-8 sm:p-12 text-center space-y-8 shadow-2xl">
+          <div className="w-24 h-24 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20">
+            <Lock className="w-12 h-12 text-rose-500" />
+          </div>
+          
+          <div className="space-y-3">
+            <h2 className="text-3xl font-bold text-white tracking-tight">Conteúdo Restrito</h2>
+            <p className="text-base text-[#8E9BB0] leading-relaxed">
+              Você não possui uma matrícula ativa ou autorização para visualizar as aulas deste curso. 
+              O acesso é exclusivo para membros com licença válida.
+            </p>
+          </div>
+
+          <div className="pt-4 flex flex-col gap-4">
+            <button
+              onClick={onBack}
+              className="w-full py-4 px-8 rounded-2xl bg-[#D4AF37] text-black font-extrabold hover:bg-[#F5D76E] transition shadow-lg shadow-[#D4AF37]/20 flex items-center justify-center gap-2"
+            >
+              <ArrowLeft className="w-5 h-5" />
+              VOLTAR PARA O CATÁLOGO
+            </button>
+            
+            <div className="flex items-center justify-center gap-2 text-[11px] text-[#586376] uppercase tracking-[0.2em] font-black">
+              <ShieldAlert className="w-4 h-4" />
+              PROTEÇÃO DE PROPRIEDADE VIP
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (!course || !currentLesson) {
     return (

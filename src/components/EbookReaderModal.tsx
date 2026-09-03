@@ -5,15 +5,12 @@ import {
   Download, 
   ChevronLeft, 
   ChevronRight, 
-  ZoomIn, 
-  ZoomOut, 
-  Maximize, 
-  Share2, 
-  CheckCircle,
-  Bookmark,
-  FileText
+  Lock,
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { DigitalProduct } from '../types';
+import { useStore } from '../services/store';
 
 interface EbookReaderModalProps {
   product: DigitalProduct;
@@ -21,9 +18,13 @@ interface EbookReaderModalProps {
 }
 
 export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onClose }) => {
+  const { currentUser, hasProductAccess, accessesLoaded } = useStore();
   const [currentPage, setCurrentPage] = useState(1);
   const totalPages = product.ebook?.pageCount || 48;
   const pdfUrl = product.ebook?.pdfUrl;
+
+  // Authorization check (Defense in Depth)
+  const canAccess = currentUser ? hasProductAccess(currentUser.id, product.id) : false;
 
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(p => p + 1);
@@ -32,6 +33,45 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
   const handlePrevPage = () => {
     if (currentPage > 1) setCurrentPage(p => p - 1);
   };
+
+  if (!accessesLoaded) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in">
+        <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin mb-4" />
+        <p className="text-gray-400 text-sm animate-pulse">Verificando autorização segura...</p>
+      </div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/95 backdrop-blur-xl flex items-center justify-center p-6 animate-in fade-in">
+        <div className="max-w-md w-full bg-[#0D0F12] border border-[#1D2230] rounded-3xl p-8 text-center space-y-6 shadow-2xl">
+          <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20">
+            <Lock className="w-10 h-10 text-rose-500" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-white">Acesso Negado</h2>
+            <p className="text-sm text-[#8E9BB0] leading-relaxed">
+              Detectamos que você não possui uma licença ativa para visualizar este conteúdo protegido. Se você adquiriu este produto recentemente, aguarde alguns minutos pela sincronização.
+            </p>
+          </div>
+          <div className="flex flex-col gap-3">
+            <button
+              onClick={onClose}
+              className="w-full py-3.5 px-6 rounded-2xl bg-[#151922] text-white font-bold hover:bg-[#1D2230] transition border border-[#1D2230]"
+            >
+              Fechar Visualizador
+            </button>
+            <div className="pt-4 flex items-center justify-center gap-2 text-[10px] text-[#586376] uppercase tracking-widest font-bold">
+              <ShieldAlert className="w-3 h-3" />
+              SISTEMA DE PROTEÇÃO VIP
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col animate-in fade-in">
@@ -50,7 +90,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         </div>
 
         <div className="flex items-center gap-3">
-          {pdfUrl && (
+          {pdfUrl && canAccess && (
             <a
               href={pdfUrl}
               target="_blank"

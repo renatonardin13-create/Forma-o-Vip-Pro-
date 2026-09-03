@@ -3,15 +3,14 @@ import {
   X, 
   Smartphone, 
   ExternalLink, 
-  Play, 
   ShieldCheck, 
-  CheckCircle, 
-  Layers, 
   Cpu, 
-  Terminal,
-  Download
+  Lock,
+  ShieldAlert,
+  Loader2
 } from 'lucide-react';
 import { DigitalProduct } from '../types';
+import { useStore } from '../services/store';
 
 interface AppDetailsModalProps {
   product: DigitalProduct;
@@ -19,7 +18,54 @@ interface AppDetailsModalProps {
 }
 
 export const AppDetailsModal: React.FC<AppDetailsModalProps> = ({ product, onClose }) => {
+  const { currentUser, hasProductAccess, accessesLoaded } = useStore();
   const appData = product.app;
+
+  // Authorization check (Defense in Depth)
+  const canAccess = currentUser ? hasProductAccess(currentUser.id, product.id) : false;
+
+  if (!accessesLoaded) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 animate-in fade-in">
+        <div className="flex flex-col items-center">
+          <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin mb-4" />
+          <p className="text-gray-400 text-xs">Verificando licença de uso...</p>
+        </div>
+      </div>
+    );
+  }
+
+  if (!canAccess) {
+    return (
+      <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-xl flex items-center justify-center p-4 animate-in fade-in">
+        <div className="bg-[#0D0F12] border border-[#1D2230] rounded-3xl w-full max-w-md p-8 text-center space-y-6 shadow-2xl relative">
+          <button
+            onClick={onClose}
+            className="absolute top-4 right-4 p-2 text-gray-500 hover:text-white transition"
+          >
+            <X className="w-5 h-5" />
+          </button>
+
+          <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20">
+            <Lock className="w-10 h-10 text-rose-500" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold text-white">Licença Expirada ou Ausente</h2>
+            <p className="text-sm text-[#8E9BB0] leading-relaxed">
+              Esta aplicação possui protocolos de segurança rigorosos. Detectamos que seu perfil não possui autorização ativa para carregar esta ferramenta.
+            </p>
+          </div>
+          
+          <div className="pt-4 border-t border-[#1D2230]">
+            <div className="flex items-center justify-center gap-2 text-[10px] text-[#586376] uppercase tracking-[0.2em] font-black">
+              <ShieldAlert className="w-3 h-3" />
+              SISTEMA ANTI-PIRATARIA VIP
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in zoom-in-95">
@@ -106,7 +152,7 @@ export const AppDetailsModal: React.FC<AppDetailsModalProps> = ({ product, onClo
               <div className="text-xs text-gray-400">Clique para abrir o painel da aplicação em uma nova aba.</div>
             </div>
 
-            {appData?.accessUrl ? (
+            {appData?.accessUrl && canAccess ? (
               <a
                 href={appData.accessUrl}
                 target="_blank"
@@ -118,8 +164,9 @@ export const AppDetailsModal: React.FC<AppDetailsModalProps> = ({ product, onClo
               </a>
             ) : (
               <button
-                onClick={() => alert('Aplicativo em fase final de homologação. O acesso será liberado em breve!')}
-                className="flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black font-bold rounded-xl hover:opacity-95 shadow-lg shadow-[#D4AF37]/20 transition-all text-sm w-full sm:w-auto shrink-0"
+                disabled={!canAccess}
+                onClick={() => !canAccess ? null : alert('Aplicativo em fase final de homologação. O acesso será liberado em breve!')}
+                className={`flex items-center justify-center gap-2 px-6 py-3.5 bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black font-bold rounded-xl hover:opacity-95 shadow-lg shadow-[#D4AF37]/20 transition-all text-sm w-full sm:w-auto shrink-0 ${!canAccess ? 'opacity-50 cursor-not-allowed' : ''}`}
               >
                 <ExternalLink className="w-4 h-4" />
                 ACESSAR APLICATIVO AGORA
