@@ -329,7 +329,7 @@ async function processApprovedSale(params: {
           granted_by: "webhook",
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id, product_id" }
+        { onConflict: "id" }
       );
       
       if (accErr) {
@@ -350,7 +350,7 @@ async function processApprovedSale(params: {
           granted_by: "webhook",
           updated_at: new Date().toISOString(),
         },
-        { onConflict: "user_id, area_id" }
+        { onConflict: "id" }
       );
 
       if (accErr) {
@@ -455,20 +455,19 @@ async function processRefundOrChargeback(params: {
     const newStatus = reason === "chargeback" ? "blocked" : "revoked";
 
     if (digital_product_id) {
+      const uaaId = `uaa_prod_${user.id}_${digital_product_id}`.substring(0, 100);
       const { error: revErr } = await supabase
         .from("user_area_accesses")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .eq("product_id", digital_product_id);
+        .eq("id", uaaId);
       
       flexibleRevokeStatus = revErr ? `error_product: ${revErr.message}` : `product_revoked: ${digital_product_id}`;
     } else if (area_id) {
+      const uaaId = `uaa_area_${user.id}_${area_id}`.substring(0, 100);
       const { error: revErr } = await supabase
         .from("user_area_accesses")
         .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("user_id", user.id)
-        .eq("area_id", area_id)
-        .is("product_id", null);
+        .eq("id", uaaId);
       
       flexibleRevokeStatus = revErr ? `error_area: ${revErr.message}` : `area_revoked: ${area_id}`;
     }
