@@ -317,11 +317,79 @@ class StoreManager {
   }
 
   /**
+   * FASE 2.2: Carrega produtos digitais do Supabase com fallback para Mock
+   */
+  public async initializeProducts(): Promise<void> {
+    if (!isSupabaseConfigured()) {
+      console.log('[Store] Supabase não configurado. Utilizando produtos do Mock.');
+      return;
+    }
+
+    try {
+      const { data, error } = await supabase
+        .from('digital_products')
+        .select('*')
+        .order('order', { ascending: true });
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        // Mapeamento explícito de snake_case (Supabase) para camelCase (TypeScript)
+        const mappedProducts: DigitalProduct[] = data.map(item => ({
+          id: item.id,
+          areaId: item.area_id,
+          title: item.title,
+          shortDescription: item.short_description || '',
+          fullDescription: item.full_description || '',
+          type: item.type as any,
+          category: item.category || 'Geral',
+          coverUrl: item.cover_url || '',
+          bannerUrl: item.banner_url || '',
+          mobileBannerUrl: item.mobile_banner_url || '',
+          logoUrl: item.logo_url || '',
+          thumbnailUrl: item.thumbnail_url || '',
+          trailerUrl: item.trailer_url || '',
+          author: item.author || { name: 'Renato Nardin', role: 'Especialista VIP', avatar: 'https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?auto=format&fit=crop&w=100&q=80' },
+          status: (item.status as any) || 'published',
+          order: item.order_index || 0,
+          publishedAt: item.published_at || new Date().toISOString(),
+          courseId: item.course_id || undefined,
+          ebook: item.ebook || undefined,
+          app: item.app || undefined,
+          tool: item.tool || undefined,
+          file: item.file || undefined,
+          link: item.link || undefined,
+          featured: item.featured || false,
+          badge: item.badge || '',
+          accessLevel: (item.access_level as any) || 'vip',
+          price: item.price ? Number(item.price) : undefined,
+          salesStrategy: (item.sales_strategy as any) || 'sales_page',
+          salesPageUrl: item.sales_page_url || undefined,
+          checkoutUrl: item.checkout_url || undefined
+        }));
+
+        this.digitalProducts = mappedProducts;
+        // Salva no cache do localStorage (cache de leitura)
+        saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
+        this.notify();
+        console.log(`[Store] Sucesso: ${mappedProducts.length} produtos carregados do Supabase.`);
+      } else {
+        console.log('[Store] Supabase retornou lista vazia de produtos. Mantendo Fallback.');
+      }
+    } catch (err) {
+      console.error('[Store] Erro ao carregar produtos do Supabase, mantendo Fallback:', err);
+    }
+  }
+
+  /**
    * Supabase Integration: Check for existing session and listen for auth changes
    */
   public async initializeAuth(): Promise<void> {
     if (this.authInitialized || !isSupabaseConfigured()) return;
     this.authInitialized = true;
+
+    // FASE 2.2: Inicializa produtos em paralelo com a auth
+    this.initializeProducts().catch(err => console.error('[Store] Product init error:', err));
 
     // Get current session
     const { data: { session } } = await supabase.auth.getSession();
@@ -1582,6 +1650,7 @@ export function useStore() {
     checkUserAreaAccess: (userId: string, areaIdOrSlug: string) => store.checkUserAreaAccess(userId, areaIdOrSlug),
     hasProductAccess: (userId: string, productId: string) => store.hasProductAccess(userId, productId),
     initializeAuth: () => store.initializeAuth(),
+    initializeProducts: () => store.initializeProducts(),
     isSupabaseEnabled: isSupabaseConfigured(),
     grantUserAreaAccess: (data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }) => 
       store.grantUserAreaAccess(data),
