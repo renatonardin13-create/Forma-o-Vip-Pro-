@@ -235,13 +235,13 @@ async function processApprovedSale(params: {
 
   const { data: mappingData, error: mapErr } = await supabase
     .from("produtos_cursos")
-    .select("curso_id, curso_nome")
+    .select("curso_id, curso_nome, area_id, digital_product_id")
     .or(`produto_id.eq.${productId},produto_nome.ilike.%${productName}%`)
     .eq("ativo", true)
     .limit(1);
 
   if (!mapErr && mappingData && mappingData.length > 0) {
-    mappedCourseId = mappingData[0].curso_id;
+    mappedCourseId = mappingData[0].curso_id || "course-default";
     mappedCourseName = mappingData[0].curso_nome || productName;
   }
 
@@ -292,7 +292,7 @@ async function processApprovedSale(params: {
     });
   }
 
-  // 4. Register or Update enrollment in `matriculas`
+  // 4. Register or Update enrollment in `matriculas` (Legacy System)
   const { data: matricula, error: matErr } = await supabase.from("matriculas").upsert(
     {
       user_id: userId,
@@ -309,6 +309,57 @@ async function processApprovedSale(params: {
 
   if (matErr) {
     console.warn("[Webhook] Aviso ao gravar matrícula:", matErr.message);
+  }
+
+  // 4.1. NEW: Register or Update Individual Access in `user_area_accesses` (Flexible System)
+  let flexibleAccessStatus = "skipped";
+  if (!mapErr && mappingData && mappingData.length > 0) {
+    const mapping = mappingData[0];
+    const { area_id, digital_product_id } = mapping;
+
+    if (digital_product_id) {
+      // UPSERT atômico para produto específico baseado no índice unq_uaa_product_access
+      const { error: accErr } = await supabase.from("user_area_accesses").upsert(
+        {
+          id: `uaa_prod_${userId}_${digital_product_id}`.substring(0, 100),
+          user_id: userId,
+          area_id: area_id,
+          product_id: digital_product_id,
+          status: "active",
+          granted_by: "webhook",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id, product_id" }
+      );
+      
+      if (accErr) {
+        console.error("[Webhook] Erro no UPSERT de produto digital:", accErr.message);
+        flexibleAccessStatus = `error_product: ${accErr.message}`;
+      } else {
+        flexibleAccessStatus = `product_active: ${digital_product_id}`;
+      }
+    } else if (area_id) {
+      // UPSERT atômico para liberação total da área baseado no índice unq_uaa_area_access
+      const { error: accErr } = await supabase.from("user_area_accesses").upsert(
+        {
+          id: `uaa_area_${userId}_${area_id}`.substring(0, 100),
+          user_id: userId,
+          area_id: area_id,
+          product_id: null,
+          status: "active",
+          granted_by: "webhook",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id, area_id" }
+      );
+
+      if (accErr) {
+        console.error("[Webhook] Erro no UPSERT de área de membros:", accErr.message);
+        flexibleAccessStatus = `error_area: ${accErr.message}`;
+      } else {
+        flexibleAccessStatus = `area_active: ${area_id}`;
+      }
+    }
   }
 
   // 5. Send Welcome Email if this is a newly created student
@@ -334,8 +385,8 @@ async function processApprovedSale(params: {
     status_processamento: "sucesso",
     sucesso: true,
     mensagem_detalhe: isNewUser
-      ? `Novo aluno criado. Matrícula #${matricula?.id || "ok"} liberada para '${mappedCourseName}'. E-mail: ${emailStatus}.`
-      : `Aluno já existente. Matrícula liberada para '${mappedCourseName}'.`,
+      ? `Novo aluno criado. Acesso ${flexibleAccessStatus}. Matrícula #${matricula?.id || "ok"} para '${mappedCourseName}'. E-mail: ${emailStatus}.`
+      : `Aluno já existente. Acesso ${flexibleAccessStatus}. Matrícula para '${mappedCourseName}'.`,
     payload_bruto: payload,
   });
 
@@ -380,7 +431,7 @@ async function processRefundOrChargeback(params: {
     return { success: true, message: "User not found, nothing to revoke" };
   }
 
-  // Update matriculas status to 'reembolsado' / 'revogado'
+  // 1. Update matriculas status to 'reembolsado' / 'revogado' (Legacy System)
   const { error: updateErr } = await supabase
     .from("matriculas")
     .update({
@@ -390,6 +441,39 @@ async function processRefundOrChargeback(params: {
     .eq("user_id", user.id)
     .or(`produto_id.eq.${productId},produto_nome.eq.${productName}`);
 
+  // 2. Find Mapping for Flexible System
+  const { data: mappingData } = await supabase
+    .from("produtos_cursos")
+    .select("area_id, digital_product_id")
+    .or(`produto_id.eq.${productId},produto_nome.eq.${productName}`)
+    .eq("ativo", true)
+    .limit(1);
+
+  let flexibleRevokeStatus = "none";
+  if (mappingData && mappingData.length > 0) {
+    const { area_id, digital_product_id } = mappingData[0];
+    const newStatus = reason === "chargeback" ? "blocked" : "revoked";
+
+    if (digital_product_id) {
+      const { error: revErr } = await supabase
+        .from("user_area_accesses")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .eq("product_id", digital_product_id);
+      
+      flexibleRevokeStatus = revErr ? `error_product: ${revErr.message}` : `product_revoked: ${digital_product_id}`;
+    } else if (area_id) {
+      const { error: revErr } = await supabase
+        .from("user_area_accesses")
+        .update({ status: newStatus, updated_at: new Date().toISOString() })
+        .eq("user_id", user.id)
+        .eq("area_id", area_id)
+        .is("product_id", null);
+      
+      flexibleRevokeStatus = revErr ? `error_area: ${revErr.message}` : `area_revoked: ${area_id}`;
+    }
+  }
+
   await logWebhookExecution({
     plataforma,
     evento: reason,
@@ -398,7 +482,7 @@ async function processRefundOrChargeback(params: {
     produto_nome: productName,
     status_processamento: "revogado",
     sucesso: true,
-    mensagem_detalhe: `Acesso do aluno ${cleanEmail} revogado com sucesso devido a ${reason}.`,
+    mensagem_detalhe: `Acesso revogado (Matrícula: ${updateErr ? "erro" : "ok"}, Digital: ${flexibleRevokeStatus}) devido a ${reason}.`,
     payload_bruto: payload,
   });
 
