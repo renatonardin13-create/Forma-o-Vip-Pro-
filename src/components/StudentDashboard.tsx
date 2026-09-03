@@ -12,11 +12,13 @@ import {
   TrendingUp,
   Bookmark,
   Layers,
-  Flame
+  Flame,
+  Lock
 } from 'lucide-react';
 import { useStore } from '../services/store';
-import { Course } from '../types';
+import { Course, DigitalProduct } from '../types';
 import { HeroCarousel } from './HeroCarousel';
+import { ProductSalesModal } from './ProductSalesModal';
 
 interface StudentDashboardProps {
   onOpenCourse: (courseId: string) => void;
@@ -32,11 +34,25 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   const { 
     currentUser, 
     courses, 
+    digitalProducts,
+    hasProductAccess,
     certificates, 
     getCourseProgress, 
     isFavorite, 
     toggleFavorite 
   } = useStore();
+
+  const [selectedProductForSale, setSelectedProductForSale] = React.useState<DigitalProduct | null>(null);
+
+  const handleLockedProductClick = (product: DigitalProduct) => {
+    if (product.salesStrategy === 'sales_page' && product.salesPageUrl) {
+      window.open(product.salesPageUrl, '_blank');
+    } else if (product.salesStrategy === 'presell' && product.presellUrl) {
+      window.open(product.presellUrl, '_blank');
+    } else {
+      setSelectedProductForSale(product);
+    }
+  };
 
   // Find most relevant in-progress course
   const inProgressCourses = courses.map(course => {
@@ -388,79 +404,135 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           </button>
         </div>
 
-        {/* 4-Card Course Grid */}
+        {/* 4-Card Product Grid (Vitrine) */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-5">
-          {courses.map((course) => {
-            const prog = getCourseProgress(course.id);
-            const isFav = isFavorite(course.id);
+          {digitalProducts.filter(p => p.status === 'published').slice(0, 8).map((product) => {
+            const hasAccess = currentUser ? hasProductAccess(currentUser.id, product.id) : false;
+            const course = product.courseId ? courses.find(c => c.id === product.courseId) : null;
+            const prog = course ? getCourseProgress(course.id) : { percentage: 0, completedLessonIds: [], totalLessons: 0 };
+            const isFav = course ? isFavorite(course.id) : false;
+            
             let totalLessons = 0;
-            course.modules.forEach(m => totalLessons += m.lessons.length);
+            if (course) {
+              course.modules.forEach(m => totalLessons += m.lessons.length);
+            }
 
             return (
               <div
-                key={course.id}
-                onClick={() => onOpenCourse(course.id)}
-                className="group relative rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 overflow-hidden shadow-card-dark transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-1 hover:shadow-gold-glow"
+                key={product.id}
+                onClick={() => {
+                  if (hasAccess) {
+                    if (product.courseId) onOpenCourse(product.courseId);
+                  } else {
+                    handleLockedProductClick(product);
+                  }
+                }}
+                className={`group relative rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 overflow-hidden shadow-card-dark transition-all duration-300 flex flex-col cursor-pointer hover:-translate-y-1 ${hasAccess ? 'hover:shadow-gold-glow' : 'hover:shadow-black/40'}`}
               >
                 <div className="relative aspect-video overflow-hidden">
                   <img 
-                    src={course.thumbnailUrl} 
-                    alt={course.title}
-                    className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500" 
+                    src={product.thumbnailUrl} 
+                    alt={product.title}
+                    className={`w-full h-full object-cover transition-transform duration-500 ${hasAccess ? 'group-hover:scale-105' : 'brightness-50 group-hover:scale-110'}`} 
                   />
                   <div className="absolute inset-0 bg-gradient-to-t from-[#151922] via-transparent to-black/40" />
                   
+                  {/* Lock Overlay for non-purchased */}
+                  {!hasAccess && (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/40 backdrop-blur-[2px] transition-all group-hover:bg-black/60">
+                      <div className="w-12 h-12 rounded-full bg-[#D4AF37]/20 border border-[#D4AF37]/40 flex items-center justify-center text-[#F5C84C] mb-2 shadow-gold-glow-sm">
+                        <Lock className="w-6 h-6" />
+                      </div>
+                      <span className="text-[10px] font-black text-[#F5C84C] uppercase tracking-[0.2em] drop-shadow-md">
+                        CONTEÚDO PREMIUM
+                      </span>
+                    </div>
+                  )}
+
                   {/* Top Level & Favorite */}
                   <div className="absolute top-2.5 left-2.5 right-2.5 flex items-center justify-between">
-                    <span className="px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-[#1D2230] text-[9px] font-bold text-white uppercase tracking-wider">
-                      {course.level}
-                    </span>
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        toggleFavorite(course.id);
-                      }}
-                      className={`p-1.5 rounded-lg bg-black/60 backdrop-blur-md border transition ${
-                        isFav ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-[#1D2230] text-[#A7AFBF] hover:text-white'
-                      }`}
-                    >
-                      <Bookmark className="w-3.5 h-3.5" />
-                    </button>
+                    <div className="flex items-center gap-1.5">
+                      <span className="px-2 py-0.5 rounded-md bg-black/70 backdrop-blur-md border border-[#1D2230] text-[9px] font-bold text-white uppercase tracking-wider">
+                        {product.type === 'curso' ? (course?.level || 'Premium') : 'Ebook'}
+                      </span>
+                      {!hasAccess && (
+                        <span className="px-2 py-0.5 rounded-md bg-[#D4AF37] text-black text-[9px] font-black uppercase tracking-wider shadow-sm">
+                          BLOQUEADO
+                        </span>
+                      )}
+                    </div>
+                    {hasAccess && product.courseId && (
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          toggleFavorite(product.courseId!);
+                        }}
+                        className={`p-1.5 rounded-lg bg-black/60 backdrop-blur-md border transition ${
+                          isFav ? 'border-[#D4AF37] text-[#D4AF37]' : 'border-[#1D2230] text-[#A7AFBF] hover:text-white'
+                        }`}
+                      >
+                        <Bookmark className="w-3.5 h-3.5" />
+                      </button>
+                    )}
                   </div>
 
-                  {/* Play Button Overlay */}
+                  {/* Button Overlay */}
                   <div className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity bg-black/30">
-                    <div className="w-11 h-11 rounded-full bg-[#D4AF37] text-black flex items-center justify-center shadow-gold-glow-lg transform scale-90 group-hover:scale-100 transition-transform">
-                      <Play className="w-5 h-5 fill-current ml-0.5" />
+                    <div className="w-auto px-6 py-2.5 rounded-xl bg-[#D4AF37] text-black font-extrabold text-[10px] tracking-widest uppercase flex items-center gap-2 shadow-gold-glow-lg transform scale-90 group-hover:scale-100 transition-transform">
+                      {hasAccess ? (
+                        <>
+                          <Play className="w-4 h-4 fill-current ml-0.5" />
+                          <span>ACESSAR AGORA</span>
+                        </>
+                      ) : (
+                        <span>VER OFERTA EXCLUSIVA</span>
+                      )}
                     </div>
                   </div>
                 </div>
 
                 <div className="p-4 flex-1 flex flex-col justify-between space-y-3">
                   <div className="space-y-1.5">
-                    <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">
-                      {course.category}
-                    </span>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] font-bold text-[#D4AF37] uppercase tracking-wider">
+                        {product.type === 'curso' ? (course?.category || 'Formação') : 'Recurso'}
+                      </span>
+                      {hasAccess && (
+                        <span className="text-[9px] font-bold text-emerald-400 flex items-center gap-1">
+                          <CheckCircle2 className="w-3 h-3" />
+                          ACESSO LIBERADO
+                        </span>
+                      )}
+                    </div>
                     <h4 className="text-sm font-bold text-white line-clamp-1 group-hover:text-[#F5D76E] transition">
-                      {course.title}
+                      {product.title}
                     </h4>
                     <p className="text-[11px] text-[#A7AFBF] line-clamp-2 leading-relaxed">
-                      {course.description}
+                      {product.shortDescription}
                     </p>
                   </div>
 
                   <div className="pt-2 border-t border-[#1D2230] space-y-2">
-                    <div className="flex items-center justify-between text-[10px] text-[#A7AFBF] font-mono">
-                      <span>{course.modules.length} Módulos • {totalLessons} Aulas</span>
-                      <span className="text-[#D4AF37] font-bold">{prog.percentage}%</span>
-                    </div>
+                    {hasAccess && course ? (
+                      <>
+                        <div className="flex items-center justify-between text-[10px] text-[#A7AFBF] font-mono">
+                          <span>{course.modules.length} Módulos • {totalLessons} Aulas</span>
+                          <span className="text-[#D4AF37] font-bold">{prog.percentage}%</span>
+                        </div>
 
-                    <div className="w-full bg-[#0D0F12] h-1.5 rounded-full overflow-hidden border border-[#1D2230]">
-                      <div 
-                        className="h-full bg-gradient-to-r from-[#AA820A] to-[#D4AF37] rounded-full"
-                        style={{ width: `${prog.percentage}%` }}
-                      />
-                    </div>
+                        <div className="w-full bg-[#0D0F12] h-1.5 rounded-full overflow-hidden border border-[#1D2230]">
+                          <div 
+                            className="h-full bg-gradient-to-r from-[#AA820A] to-[#D4AF37] rounded-full"
+                            style={{ width: `${prog.percentage}%` }}
+                          />
+                        </div>
+                      </>
+                    ) : (
+                      <div className="flex items-center justify-between py-1">
+                        <span className="text-[10px] font-bold text-[#A7AFBF] uppercase tracking-tighter">CLIQUE PARA VER DETALHES</span>
+                        <ArrowRight className="w-3 h-3 text-[#D4AF37]" />
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
@@ -468,6 +540,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
           })}
         </div>
       </div>
+
+      {/* Sales Modal for Locked Products */}
+      {selectedProductForSale && (
+        <ProductSalesModal 
+          product={selectedProductForSale}
+          onClose={() => setSelectedProductForSale(null)}
+        />
+      )}
     </div>
   );
 };
