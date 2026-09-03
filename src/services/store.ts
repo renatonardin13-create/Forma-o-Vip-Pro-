@@ -1622,14 +1622,13 @@ class StoreManager {
       );
       if (hasSupabaseExplicit) return true;
 
-      // 2. Check for area-wide access (if area-wide access is meant to include all products)
-      // Note: Scenarios say "NÃO liberar somente por possuir acesso à área" for PAID products, 
-      // but usually an area access record with productId NULL means "all products in this area".
-      // Let's check if the specific requirement means area access doesn't count for products.
-      // "CENÁRIO 4: Usuário com acesso à Área VIP mas sem acesso individual a determinado produto pago. Resultado: produto -> 🔒."
-      // This implies area access != product access if product is paid.
-      // However, usually "MemberArea" is a collection of products.
-      // If the requirement is strict, I skip area access check here.
+      // 2. Check for area-wide access (product_id is null in the access record)
+      if (product.areaId) {
+        const hasAreaWideAccess = this.supabaseAccesses.some(
+          acc => acc.areaId === product.areaId && !acc.productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
+        );
+        if (hasAreaWideAccess) return true;
+      }
 
       // 3. Check matriculas for specific product or course
       if (product.courseId && this.supabaseMatriculas.some(m => m.curso_id === product.courseId && m.status === 'ativo')) return true;
@@ -1646,6 +1645,14 @@ class StoreManager {
       acc => acc.userId === userId && acc.productId === productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
     );
     if (hasExplicit) return true;
+
+    // Check area-wide access (product_id is null)
+    if (product.areaId) {
+      const hasAreaWide = this.userAreaAccesses.some(
+        acc => acc.userId === userId && acc.areaId === product.areaId && !acc.productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
+      );
+      if (hasAreaWide) return true;
+    }
 
     // Check matriculas for specific product or course
     const userMatriculas = this.matriculas.filter(m => m.user_id === userId && m.status === 'ativo');

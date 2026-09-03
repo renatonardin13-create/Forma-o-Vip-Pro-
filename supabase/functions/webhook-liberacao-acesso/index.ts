@@ -236,13 +236,26 @@ async function processApprovedSale(params: {
   const { data: mappingData, error: mapErr } = await supabase
     .from("produtos_cursos")
     .select("curso_id, curso_nome, area_id, digital_product_id")
-    .or(`produto_id.eq.${productId},produto_nome.ilike.%${productName}%`)
-    .eq("ativo", true)
-    .limit(1);
+    .eq("produto_id", productId)
+    .eq("ativo", true);
 
-  if (!mapErr && mappingData && mappingData.length > 0) {
+  if (mapErr) {
+    console.error("[Webhook] Erro ao buscar mapeamento:", mapErr.message);
+  }
+
+  if (mappingData && mappingData.length > 1) {
+    console.error(`[Webhook] CONFLITO: Múltiplos mapeamentos encontrados para o produto_id: ${productId}.`);
+    // Em caso de conflito, não liberamos nada para evitar inconsistência
+    throw new Error(`Conflito de mapeamento: múltiplos destinos para o produto ${productId}.`);
+  }
+
+  if (mappingData && mappingData.length === 1) {
     mappedCourseId = mappingData[0].curso_id || "course-default";
     mappedCourseName = mappingData[0].curso_nome || productName;
+  } else if (!mapErr) {
+    console.warn(`[Webhook] Nenhum mapeamento ativo encontrado para produto_id: ${productId}.`);
+    // Se não há mapeamento, não liberamos nada
+    throw new Error(`Produto não mapeado: ${productId}.`);
   }
 
   // 2. Check if user already exists in Supabase Auth
@@ -445,12 +458,11 @@ async function processRefundOrChargeback(params: {
   const { data: mappingData } = await supabase
     .from("produtos_cursos")
     .select("area_id, digital_product_id")
-    .or(`produto_id.eq.${productId},produto_nome.eq.${productName}`)
-    .eq("ativo", true)
-    .limit(1);
+    .eq("produto_id", productId)
+    .eq("ativo", true);
 
   let flexibleRevokeStatus = "none";
-  if (mappingData && mappingData.length > 0) {
+  if (mappingData && mappingData.length === 1) {
     const { area_id, digital_product_id } = mappingData[0];
     const newStatus = reason === "chargeback" ? "blocked" : "revoked";
 
