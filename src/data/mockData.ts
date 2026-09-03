@@ -1271,6 +1271,32 @@ export const INITIAL_DIGITAL_PRODUCTS: DigitalProduct[] = [
       fileSize: '45.8 MB',
       fileType: 'ZIP'
     }
+  },
+  {
+    id: 'prod-depois-dos-60-real',
+    areaId: 'area-ebooks',
+    title: 'Depois dos 60: 50 cuidados que todo idoso e sua família precisam conhecer',
+    shortDescription: 'Guia prático com 50 cuidados essenciais para melhorar a segurança, a prevenção, a autonomia e a qualidade de vida na terceira idade.',
+    fullDescription: 'PENDENTE',
+    type: 'ebook',
+    category: 'Saúde & Bem-estar',
+    status: 'published',
+    order: 10,
+    publishedAt: '2025-01-01',
+    ebook: {
+      pageCount: 50,
+      fileFormat: 'PDF',
+      pdfUrl: '' // PENDENTE
+    },
+    storagePath: 'PENDENTE',
+    coverUrl: 'https://api.iconify.design/lucide:book-open.svg?color=%23D4AF37',
+    bannerUrl: '', // PENDENTE
+    accessLevel: 'vip',
+    author: {
+      name: 'PENDENTE',
+      role: 'Especialista',
+      avatar: '' // PENDENTE
+    }
   }
 ];
 
