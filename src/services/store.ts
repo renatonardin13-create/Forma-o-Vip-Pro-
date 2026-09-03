@@ -385,6 +385,42 @@ class StoreManager {
   }
 
   /**
+   * FASE 2.5C: Carrega mapeamentos de produtos_cursos do Supabase
+   */
+  public async initializeProdutosCursos(): Promise<void> {
+    if (!isSupabaseConfigured()) return;
+
+    try {
+      const { data, error } = await supabase
+        .from('produtos_cursos')
+        .select('*');
+
+      if (error) throw error;
+
+      if (data && data.length > 0) {
+        this.produtosCursos = data.map(item => ({
+          id: item.id,
+          produto_id: item.produto_id,
+          produto_nome: item.produto_nome,
+          curso_id: item.curso_id,
+          curso_nome: item.curso_nome,
+          plataforma: item.plataforma as any,
+          ativo: item.ativo ?? true,
+          area_id: item.area_id,
+          digital_product_id: item.digital_product_id,
+          created_at: item.created_at
+        }));
+        
+        saveStorage(STORAGE_KEYS.PRODUTOS_CURSOS, this.produtosCursos);
+        this.notify();
+        console.log(`[Store] Sucesso: ${this.produtosCursos.length} mapeamentos carregados do Supabase.`);
+      }
+    } catch (err) {
+      console.error('[Store] Erro ao carregar mapeamentos do Supabase:', err);
+    }
+  }
+
+  /**
    * FASE 2.3: Carrega acessos e matrículas do Supabase para o usuário atual
    */
   public async initializeAccess(userId: string): Promise<void> {
@@ -455,6 +491,7 @@ class StoreManager {
 
     // FASE 2.2: Inicializa produtos em paralelo com a auth
     this.initializeProducts().catch(err => console.error('[Store] Product init error:', err));
+    this.initializeProdutosCursos().catch(err => console.error('[Store] Mapping init error:', err));
 
     // Get current session
     const { data: { session } } = await supabase.auth.getSession();
@@ -988,21 +1025,73 @@ class StoreManager {
     return this.produtosCursos;
   }
 
-  public saveProdutoCursoMapping(mapping: ProdutoCursoMapping): void {
+  public async saveProdutoCursoMapping(mapping: ProdutoCursoMapping): Promise<void> {
+    // 1. Atualiza estado local primeiro para feedback instantâneo
     const idx = this.produtosCursos.findIndex(m => m.id === mapping.id);
+    
+    // Gera ID se não existir
+    const mappingId = mapping.id || (typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : `map_${Date.now()}`);
+    
+    const mappingToSave: ProdutoCursoMapping = { 
+      ...mapping, 
+      id: mappingId,
+      created_at: mapping.created_at || new Date().toISOString() 
+    };
+
     if (idx >= 0) {
-      this.produtosCursos[idx] = { ...mapping };
+      this.produtosCursos[idx] = mappingToSave;
     } else {
-      this.produtosCursos.unshift({ ...mapping, id: mapping.id || `map_${Date.now()}`, created_at: new Date().toISOString() });
+      this.produtosCursos.unshift(mappingToSave);
     }
+    
     saveStorage(STORAGE_KEYS.PRODUTOS_CURSOS, this.produtosCursos);
     this.notify();
+
+    // 2. Persiste no Supabase se configurado
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('produtos_cursos')
+          .upsert({
+            id: mappingToSave.id,
+            produto_id: mappingToSave.produto_id,
+            produto_nome: mappingToSave.produto_nome,
+            curso_id: mappingToSave.curso_id || null,
+            curso_nome: mappingToSave.curso_nome || null,
+            plataforma: mappingToSave.plataforma,
+            area_id: mappingToSave.area_id || null,
+            digital_product_id: mappingToSave.digital_product_id || null,
+            ativo: mappingToSave.ativo ?? true
+          });
+
+        if (error) throw error;
+        console.log('[Store] Mapeamento salvo no Supabase com sucesso.');
+      } catch (err) {
+        console.error('[Store] Erro ao salvar mapeamento no Supabase:', err);
+      }
+    }
   }
 
-  public deleteProdutoCursoMapping(id: string): void {
+  public async deleteProdutoCursoMapping(id: string): Promise<void> {
+    // 1. Atualiza estado local
     this.produtosCursos = this.produtosCursos.filter(m => m.id !== id);
     saveStorage(STORAGE_KEYS.PRODUTOS_CURSOS, this.produtosCursos);
     this.notify();
+
+    // 2. Remove do Supabase se configurado
+    if (isSupabaseConfigured()) {
+      try {
+        const { error } = await supabase
+          .from('produtos_cursos')
+          .delete()
+          .eq('id', id);
+
+        if (error) throw error;
+        console.log('[Store] Mapeamento removido do Supabase com sucesso.');
+      } catch (err) {
+        console.error('[Store] Erro ao excluir mapeamento no Supabase:', err);
+      }
+    }
   }
 
   // Webhook Logs

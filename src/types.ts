@@ -189,11 +189,13 @@ export interface ProdutoCursoMapping {
   id: string;
   produto_id: string;
   produto_nome: string;
-  curso_id: string;
-  curso_nome: string;
+  curso_id?: string;
+  curso_nome?: string;
   plataforma: 'kiwify' | 'perfectpay' | 'todas';
   ativo: boolean;
   created_at?: string;
+  area_id?: string;
+  digital_product_id?: string;
 }
 
 export interface WebhookLogRecord {

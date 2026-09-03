@@ -39,7 +39,9 @@ export const WebhooksManager: React.FC = () => {
     addWebhookLog, 
     clearWebhookLogs,
     processWebhookSimulation,
-    matriculas
+    matriculas,
+    memberAreas,
+    digitalProducts
   } = useStore();
 
   const [activeTab, setActiveTab] = useState<'endpoints' | 'simulator' | 'mappings' | 'logs' | 'sql' | 'email'>('endpoints');
@@ -59,10 +61,14 @@ export const WebhooksManager: React.FC = () => {
 
   // Mapping Form State
   const [showMappingModal, setShowMappingModal] = useState(false);
+  const [editingMappingId, setEditingMappingId] = useState<string | null>(null);
   const [newProdId, setNewProdId] = useState('');
   const [newProdName, setNewProdName] = useState('');
-  const [newCourseId, setNewCourseId] = useState(courses[0]?.id || 'course-negocios-digitais');
+  const [newCourseId, setNewCourseId] = useState('');
   const [newPlat, setNewPlat] = useState<'kiwify' | 'perfectpay' | 'todas'>('todas');
+  const [mappingType, setMappingType] = useState<'curso' | 'produto' | 'area'>('curso');
+  const [newAreaId, setNewAreaId] = useState('');
+  const [newDigitalProductId, setNewDigitalProductId] = useState('');
 
   // Logs Filter & Payload Modal
   const [logFilterPlatform, setLogFilterPlatform] = useState<string>('all');
@@ -99,25 +105,82 @@ export const WebhooksManager: React.FC = () => {
     }, 600);
   };
 
-  const handleSaveMapping = (e: React.FormEvent) => {
+  const handleSaveMapping = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!newProdId || !newProdName || !newCourseId) return;
+    if (!newProdId || !newProdName) return;
 
-    const selectedCourse = courses.find(c => c.id === newCourseId);
-    saveProdutoCursoMapping({
-      id: `map_${Date.now()}`,
+    let payload: Partial<ProdutoCursoMapping> = {
+      id: editingMappingId || undefined,
       produto_id: newProdId.trim(),
       produto_nome: newProdName.trim(),
-      curso_id: newCourseId,
-      curso_nome: selectedCourse?.title || 'Curso VIP',
       plataforma: newPlat,
       ativo: true,
-      created_at: new Date().toISOString().split('T')[0]
-    });
+    };
 
+    if (mappingType === 'curso') {
+      if (!newCourseId) return;
+      const selectedCourse = courses.find(c => c.id === newCourseId);
+      payload = {
+        ...payload,
+        curso_id: newCourseId,
+        curso_nome: selectedCourse?.title || 'Curso VIP',
+        area_id: undefined,
+        digital_product_id: undefined
+      };
+    } else if (mappingType === 'area') {
+      if (!newAreaId) return;
+      payload = {
+        ...payload,
+        area_id: newAreaId,
+        curso_id: undefined,
+        curso_nome: undefined,
+        digital_product_id: undefined
+      };
+    } else if (mappingType === 'produto') {
+      if (!newDigitalProductId) return;
+      payload = {
+        ...payload,
+        digital_product_id: newDigitalProductId,
+        curso_id: undefined,
+        curso_nome: undefined,
+        area_id: undefined
+      };
+    }
+
+    await saveProdutoCursoMapping(payload as ProdutoCursoMapping);
+
+    resetMappingForm();
+    setShowMappingModal(false);
+  };
+
+  const resetMappingForm = () => {
     setNewProdId('');
     setNewProdName('');
-    setShowMappingModal(false);
+    setNewCourseId(courses[0]?.id || '');
+    setNewAreaId(memberAreas[0]?.id || '');
+    setNewDigitalProductId(digitalProducts[0]?.id || '');
+    setMappingType('curso');
+    setEditingMappingId(null);
+  };
+
+  const handleEditMapping = (mapping: ProdutoCursoMapping) => {
+    setEditingMappingId(mapping.id);
+    setNewProdId(mapping.produto_id);
+    setNewProdName(mapping.produto_nome);
+    setNewPlat(mapping.plataforma);
+    
+    if (mapping.digital_product_id) {
+      setMappingType('produto');
+      setNewDigitalProductId(mapping.digital_product_id);
+    } else if (mapping.area_id) {
+      setMappingType('area');
+      setNewAreaId(mapping.area_id);
+    } else {
+      setMappingType('curso');
+      setNewCourseId(mapping.curso_id || '');
+    }
+    
+    setShowMappingModal(true);
   };
 
   const filteredLogs = webhookLogs.filter(log => {
@@ -596,7 +659,10 @@ export const WebhooksManager: React.FC = () => {
             </div>
 
             <button
-              onClick={() => setShowMappingModal(true)}
+              onClick={() => {
+                resetMappingForm();
+                setShowMappingModal(true);
+              }}
               className="px-4 py-2.5 rounded-xl bg-[#E5A83B] hover:bg-[#D4AF37] text-black font-bold text-xs flex items-center justify-center gap-1.5 transition"
             >
               <Plus className="w-4 h-4" />
@@ -610,80 +676,134 @@ export const WebhooksManager: React.FC = () => {
               <thead>
                 <tr className="border-b border-[#1D2230] text-[#8E9BB0] uppercase font-mono text-[10px]">
                   <th className="py-3 px-4">Plataforma</th>
-                  <th className="py-3 px-4">Código / ID do Produto</th>
-                  <th className="py-3 px-4">Nome do Produto</th>
-                  <th className="py-3 px-4">Curso Liberado na Área VIP</th>
-                  <th className="py-3 px-4 text-center">Status</th>
-                  <th className="py-3 px-4 text-right">Ação</th>
+                  <th className="py-3 px-4">Código / ID</th>
+                  <th className="py-3 px-4">Produto Externo</th>
+                  <th className="py-3 px-4">Tipo</th>
+                  <th className="py-3 px-4">Destino na Área VIP</th>
+                  <th className="py-3 px-4 text-right">Ações</th>
                 </tr>
               </thead>
               <tbody className="divide-y divide-[#1D2230]">
-                {produtosCursos.map(mapping => (
-                  <tr key={mapping.id} className="hover:bg-[#151922]/40 transition">
-                    <td className="py-3.5 px-4 font-mono">
-                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                        mapping.plataforma === 'perfectpay' 
-                          ? 'bg-[#E5A83B]/10 text-[#E5A83B] border border-[#E5A83B]/30'
-                          : mapping.plataforma === 'kiwify'
-                          ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
-                          : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
-                      }`}>
-                        {mapping.plataforma.toUpperCase()}
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 font-mono font-bold text-white select-all">
-                      {mapping.produto_id}
-                    </td>
-                    <td className="py-3.5 px-4 text-white font-medium">
-                      {mapping.produto_nome}
-                    </td>
-                    <td className="py-3.5 px-4">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="w-3.5 h-3.5 text-[#E5A83B]" />
-                        <span className="font-bold text-white">{mapping.curso_nome}</span>
-                      </div>
-                    </td>
-                    <td className="py-3.5 px-4 text-center">
-                      <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 text-[10px] font-bold">
-                        ATIVO
-                      </span>
-                    </td>
-                    <td className="py-3.5 px-4 text-right">
-                      <button
-                        onClick={() => deleteProdutoCursoMapping(mapping.id)}
-                        className="p-1.5 rounded-lg text-[#8E9BB0] hover:text-rose-400 hover:bg-rose-500/10 transition"
-                        title="Remover mapeamento"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                {produtosCursos.map(mapping => {
+                  const isArea = !!mapping.area_id;
+                  const isProduct = !!mapping.digital_product_id;
+                  const isCourse = !isArea && !isProduct;
+                  
+                  return (
+                    <tr key={mapping.id} className="hover:bg-[#151922]/40 transition">
+                      <td className="py-3.5 px-4 font-mono">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          mapping.plataforma === 'perfectpay' 
+                            ? 'bg-[#E5A83B]/10 text-[#E5A83B] border border-[#E5A83B]/30'
+                            : mapping.plataforma === 'kiwify'
+                            ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/30'
+                            : 'bg-blue-500/10 text-blue-400 border border-blue-500/30'
+                        }`}>
+                          {mapping.plataforma.toUpperCase()}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4 font-mono font-bold text-white select-all">
+                        {mapping.produto_id}
+                      </td>
+                      <td className="py-3.5 px-4 text-white font-medium">
+                        {mapping.produto_nome}
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
+                          isArea ? 'bg-purple-500/10 text-purple-400' :
+                          isProduct ? 'bg-blue-500/10 text-blue-400' :
+                          'bg-amber-500/10 text-amber-400'
+                        }`}>
+                          {isArea ? 'ÁREA' : isProduct ? 'PRODUTO' : 'CURSO'}
+                        </span>
+                      </td>
+                      <td className="py-3.5 px-4">
+                        <div className="flex items-center gap-2">
+                          {isArea ? <Layers className="w-3.5 h-3.5 text-purple-400" /> :
+                           isProduct ? <Zap className="w-3.5 h-3.5 text-blue-400" /> :
+                           <BookOpen className="w-3.5 h-3.5 text-amber-400" />}
+                          <span className="font-bold text-white">
+                            {isArea ? (memberAreas.find(a => a.id === mapping.area_id)?.name || 'Área de Membros') :
+                             isProduct ? (digitalProducts.find(p => p.id === mapping.digital_product_id)?.title || 'Produto Digital') :
+                             mapping.curso_nome}
+                          </span>
+                        </div>
+                      </td>
+                      <td className="py-3.5 px-4 text-right">
+                        <div className="flex items-center justify-end gap-2">
+                          <button
+                            onClick={() => handleEditMapping(mapping)}
+                            className="p-1.5 rounded-lg text-[#8E9BB0] hover:text-[#E5A83B] hover:bg-[#E5A83B]/10 transition"
+                            title="Editar mapeamento"
+                          >
+                            <RefreshCw className="w-4 h-4" />
+                          </button>
+                          <button
+                            onClick={() => deleteProdutoCursoMapping(mapping.id)}
+                            className="p-1.5 rounded-lg text-[#8E9BB0] hover:text-rose-400 hover:bg-rose-500/10 transition"
+                            title="Remover mapeamento"
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
 
-          {/* Modal for adding mapping */}
+          {/* Modal for adding/editing mapping */}
           {showMappingModal && (
             <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-center justify-center p-4">
               <div className="bg-[#0D0F12] border border-[#1D2230] rounded-3xl max-w-md w-full p-6 space-y-4 shadow-2xl animate-in fade-in zoom-in-95">
-                <h4 className="text-base font-extrabold text-white">Adicionar Novo Mapeamento</h4>
+                <div className="flex items-center justify-between">
+                  <h4 className="text-base font-extrabold text-white">
+                    {editingMappingId ? 'Editar Mapeamento' : 'Novo Mapeamento'}
+                  </h4>
+                  <button 
+                    onClick={() => {
+                      setShowMappingModal(false);
+                      resetMappingForm();
+                    }} 
+                    className="text-[#8E9BB0] hover:text-white"
+                  >
+                    <Plus className="w-5 h-5 rotate-45" />
+                  </button>
+                </div>
+                
                 <form onSubmit={handleSaveMapping} className="space-y-4">
-                  <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Plataforma</label>
-                    <select
-                      value={newPlat}
-                      onChange={(e) => setNewPlat(e.target.value as any)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
-                    >
-                      <option value="perfectpay">PerfectPay</option>
-                      <option value="kiwify">Kiwify</option>
-                      <option value="todas">Todas as Plataformas</option>
-                    </select>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Plataforma</label>
+                      <select
+                        value={newPlat}
+                        onChange={(e) => setNewPlat(e.target.value as any)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
+                      >
+                        <option value="perfectpay">PerfectPay</option>
+                        <option value="kiwify">Kiwify</option>
+                        <option value="todas">Todas</option>
+                      </select>
+                    </div>
+
+                    <div className="space-y-1.5">
+                      <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Tipo de Destino</label>
+                      <select
+                        value={mappingType}
+                        onChange={(e) => setMappingType(e.target.value as any)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
+                      >
+                        <option value="curso">Curso (Legado)</option>
+                        <option value="produto">Produto Digital</option>
+                        <option value="area">Área de Membros</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">ID / Código do Produto</label>
+                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">ID / Código Externo</label>
                     <input
                       type="text"
                       required
@@ -695,7 +815,7 @@ export const WebhooksManager: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Nome do Produto</label>
+                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Nome do Produto Externo</label>
                     <input
                       type="text"
                       required
@@ -707,22 +827,54 @@ export const WebhooksManager: React.FC = () => {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Curso a Liberar</label>
-                    <select
-                      value={newCourseId}
-                      onChange={(e) => setNewCourseId(e.target.value)}
-                      className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
-                    >
-                      {courses.map(course => (
-                        <option key={course.id} value={course.id}>{course.title}</option>
-                      ))}
-                    </select>
+                    <label className="text-[11px] font-bold text-[#8E9BB0] uppercase font-mono">Destino Interno</label>
+                    {mappingType === 'curso' && (
+                      <select
+                        value={newCourseId}
+                        onChange={(e) => setNewCourseId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
+                      >
+                        <option value="">Selecione um curso...</option>
+                        {courses.map(course => (
+                          <option key={course.id} value={course.id}>{course.title}</option>
+                        ))}
+                      </select>
+                    )}
+                    
+                    {mappingType === 'produto' && (
+                      <select
+                        value={newDigitalProductId}
+                        onChange={(e) => setNewDigitalProductId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
+                      >
+                        <option value="">Selecione um produto digital...</option>
+                        {digitalProducts.map(prod => (
+                          <option key={prod.id} value={prod.id}>{prod.title}</option>
+                        ))}
+                      </select>
+                    )}
+
+                    {mappingType === 'area' && (
+                      <select
+                        value={newAreaId}
+                        onChange={(e) => setNewAreaId(e.target.value)}
+                        className="w-full px-3.5 py-2.5 rounded-xl bg-[#08090C] border border-[#1D2230] text-xs text-white"
+                      >
+                        <option value="">Selecione uma área...</option>
+                        {memberAreas.map(area => (
+                          <option key={area.id} value={area.id}>{area.name}</option>
+                        ))}
+                      </select>
+                    )}
                   </div>
 
                   <div className="flex items-center justify-end gap-2 pt-2">
                     <button
                       type="button"
-                      onClick={() => setShowMappingModal(false)}
+                      onClick={() => {
+                        setShowMappingModal(false);
+                        resetMappingForm();
+                      }}
                       className="px-4 py-2.5 rounded-xl text-xs font-bold text-[#8E9BB0] hover:text-white"
                     >
                       Cancelar
@@ -731,7 +883,7 @@ export const WebhooksManager: React.FC = () => {
                       type="submit"
                       className="px-5 py-2.5 rounded-xl bg-[#E5A83B] hover:bg-[#D4AF37] text-black font-bold text-xs"
                     >
-                      Salvar Mapeamento
+                      {editingMappingId ? 'Atualizar Mapeamento' : 'Salvar Mapeamento'}
                     </button>
                   </div>
                 </form>
