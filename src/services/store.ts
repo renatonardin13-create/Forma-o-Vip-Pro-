@@ -365,6 +365,7 @@ class StoreManager {
           order: item.order_index || 0,
           publishedAt: item.published_at || new Date().toISOString(),
           courseId: item.course_id || undefined,
+          storagePath: item.storage_path || undefined,
           ebook: item.ebook || undefined,
           app: item.app || undefined,
           tool: item.tool || undefined,
@@ -389,6 +390,42 @@ class StoreManager {
       }
     } catch (err) {
       console.error('[Store] Erro ao carregar produtos do Supabase, mantendo Fallback:', err);
+    }
+  }
+
+  /**
+   * FASE 2.8B: Solicita uma Signed URL para um E-book protegido via Edge Function
+   */
+  public async getEbookSignedUrl(productId: string): Promise<string> {
+    if (!isSupabaseConfigured()) {
+      throw new Error('Supabase não configurado');
+    }
+
+    const { data: { session } } = await supabase.auth.getSession();
+    if (!session) {
+      throw new Error('Usuário não autenticado');
+    }
+
+    try {
+      const { data, error } = await supabase.functions.invoke('ebook-signed-url', {
+        body: { productId }
+      });
+
+      if (error) {
+        // Trata erros específicos da Edge Function
+        if (error.status === 403) throw new Error('Acesso negado ao e-book');
+        if (error.status === 404) throw new Error('E-book não encontrado');
+        throw new Error(error.message || 'Erro ao gerar URL do e-book');
+      }
+
+      if (!data?.signedUrl) {
+        throw new Error('URL assinada não recebida');
+      }
+
+      return data.signedUrl;
+    } catch (err: any) {
+      console.error('[Store] Erro ao obter signed URL:', err.message);
+      throw err;
     }
   }
 
@@ -1505,9 +1542,40 @@ class StoreManager {
         link: productData.link,
         featured: productData.featured || false,
         badge: productData.badge,
-        accessLevel: productData.accessLevel || 'vip'
+        accessLevel: productData.accessLevel || 'vip',
+        storagePath: productData.storagePath
       };
       this.digitalProducts.push(savedProduct);
+
+      // Persistência em background para o Supabase se configurado
+      if (isSupabaseConfigured()) {
+        supabase.from('digital_products').upsert({
+          id: savedProduct.id,
+          area_id: savedProduct.areaId,
+          title: savedProduct.title,
+          short_description: savedProduct.shortDescription,
+          full_description: savedProduct.fullDescription,
+          type: savedProduct.type,
+          category: savedProduct.category,
+          cover_url: savedProduct.coverUrl,
+          banner_url: savedProduct.bannerUrl,
+          status: savedProduct.status,
+          order_index: savedProduct.order,
+          course_id: savedProduct.courseId,
+          storage_path: savedProduct.storagePath,
+          ebook: savedProduct.ebook,
+          app: savedProduct.app,
+          tool: savedProduct.tool,
+          file: savedProduct.file,
+          link: savedProduct.link,
+          featured: savedProduct.featured,
+          badge: savedProduct.badge,
+          access_level: savedProduct.accessLevel,
+          updated_at: new Date().toISOString()
+        }).then(({ error }) => {
+          if (error) console.error('[Store] Erro ao persistir produto no Supabase:', error.message);
+        });
+      }
     } else {
       const idx = this.digitalProducts.findIndex(p => p.id === productData.id);
       savedProduct = {
@@ -1515,6 +1583,34 @@ class StoreManager {
         ...productData
       };
       this.digitalProducts[idx] = savedProduct;
+
+      // Persistência em background para o Supabase se configurado
+      if (isSupabaseConfigured()) {
+        supabase.from('digital_products').update({
+          title: savedProduct.title,
+          short_description: savedProduct.shortDescription,
+          full_description: savedProduct.fullDescription,
+          type: savedProduct.type,
+          category: savedProduct.category,
+          cover_url: savedProduct.coverUrl,
+          banner_url: savedProduct.bannerUrl,
+          status: savedProduct.status,
+          order_index: savedProduct.order,
+          course_id: savedProduct.courseId,
+          storage_path: savedProduct.storagePath,
+          ebook: savedProduct.ebook,
+          app: savedProduct.app,
+          tool: savedProduct.tool,
+          file: savedProduct.file,
+          link: savedProduct.link,
+          featured: savedProduct.featured,
+          badge: savedProduct.badge,
+          access_level: savedProduct.accessLevel,
+          updated_at: new Date().toISOString()
+        }).eq('id', savedProduct.id).then(({ error }) => {
+          if (error) console.error('[Store] Erro ao atualizar produto no Supabase:', error.message);
+        });
+      }
     }
 
     saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
@@ -1879,6 +1975,7 @@ export function useStore() {
     toggleDigitalProductStatus: (id: string) => store.toggleDigitalProductStatus(id),
     checkUserAreaAccess: (userId: string, areaIdOrSlug: string) => store.checkUserAreaAccess(userId, areaIdOrSlug),
     hasProductAccess: (userId: string, productId: string) => store.hasProductAccess(userId, productId),
+    getEbookSignedUrl: (productId: string) => store.getEbookSignedUrl(productId),
     initializeAuth: () => store.initializeAuth(),
     initializeProducts: () => store.initializeProducts(),
     isAuthInitialized: store.isAuthInitialized(),

@@ -287,8 +287,9 @@ export interface DigitalProduct {
   order: number;
   publishedAt: string;
   courseId?: string; // Se vinculado a curso estruturado
+  storagePath?: string;
   ebook?: {
-    pdfUrl: string;
+    pdfUrl?: string;
     pageCount?: number;
     fileSize?: string;
     fileFormat?: string;

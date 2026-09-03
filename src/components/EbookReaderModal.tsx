@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   X, 
   BookOpen, 
@@ -18,13 +18,46 @@ interface EbookReaderModalProps {
 }
 
 export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onClose }) => {
-  const { currentUser, hasProductAccess, accessesLoaded } = useStore();
+  const { currentUser, hasProductAccess, accessesLoaded, getEbookSignedUrl } = useStore();
   const [currentPage, setCurrentPage] = useState(1);
-  const totalPages = product.ebook?.pageCount || 48;
-  const pdfUrl = product.ebook?.pdfUrl;
+  const [signedUrl, setSignedUrl] = useState<string | null>(null);
+  const [fetchingUrl, setFetchingUrl] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
+  const totalPages = product.ebook?.pageCount || 48;
+  
   // Authorization check (Defense in Depth)
   const canAccess = currentUser ? hasProductAccess(currentUser.id, product.id) : false;
+
+  // Carrega a Signed URL se o usuário tiver acesso
+  useEffect(() => {
+    async function loadSecureUrl() {
+      if (!accessesLoaded || !canAccess) return;
+      // Se não tem storagePath nem pdfUrl, não há o que carregar
+      if (!product.storagePath && !product.ebook?.pdfUrl) return;
+
+      setFetchingUrl(true);
+      setError(null);
+
+      try {
+        // Se houver storagePath, usa o fluxo seguro (Fase 2.8B)
+        if (product.storagePath) {
+          const url = await getEbookSignedUrl(product.id);
+          setSignedUrl(url);
+        } else {
+          // Fallback para pdfUrl legada/mock
+          setSignedUrl(product.ebook?.pdfUrl || null);
+        }
+      } catch (err: any) {
+        console.error('[EbookReader] Falha ao obter acesso ao arquivo:', err);
+        setError(err.message || 'Falha ao carregar o arquivo seguro');
+      } finally {
+        setFetchingUrl(false);
+      }
+    }
+
+    loadSecureUrl();
+  }, [product.id, product.storagePath, product.ebook?.pdfUrl, canAccess, accessesLoaded, getEbookSignedUrl]);
 
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(p => p + 1);
@@ -34,7 +67,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
     if (currentPage > 1) setCurrentPage(p => p - 1);
   };
 
-  if (!accessesLoaded) {
+  if (!accessesLoaded || fetchingUrl) {
     return (
       <div className="fixed inset-0 z-50 bg-black/90 backdrop-blur-md flex flex-col items-center justify-center animate-in fade-in">
         <Loader2 className="w-8 h-8 text-[#D4AF37] animate-spin mb-4" />
@@ -90,16 +123,11 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         </div>
 
         <div className="flex items-center gap-3">
-          {pdfUrl && canAccess && (
-            <a
-              href={pdfUrl}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-2 px-3.5 py-1.5 bg-[#151922] hover:bg-[#1D2230] text-gray-200 hover:text-white rounded-lg text-xs font-semibold border border-[#222738] transition-colors"
-            >
-              <Download className="w-4 h-4 text-[#D4AF37]" />
-              <span className="hidden sm:inline">Baixar PDF</span>
-            </a>
+          {signedUrl && canAccess && (
+            <div className="hidden sm:flex items-center gap-2 bg-[#0D0F12] border border-[#222738] rounded-lg px-3 py-1.5 mr-2">
+              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
+              <span className="text-[10px] font-bold text-gray-400 uppercase tracking-wider">Acesso Seguro</span>
+            </div>
           )}
 
           <button
@@ -113,10 +141,26 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
 
       {/* Reader Body / Content */}
       <div className="flex-1 overflow-y-auto bg-[#040507] p-4 sm:p-8 flex justify-center items-center">
-        {pdfUrl ? (
+        {error ? (
+          <div className="max-w-md w-full bg-[#0D0F12] border border-[#1D2230] rounded-3xl p-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-amber-500/10 rounded-full flex items-center justify-center mx-auto border border-amber-500/20">
+              <ShieldAlert className="w-10 h-10 text-amber-500" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-white">Falha no Carregamento</h2>
+              <p className="text-sm text-[#8E9BB0] leading-relaxed">{error}</p>
+            </div>
+            <button
+              onClick={onClose}
+              className="w-full py-3.5 px-6 rounded-2xl bg-amber-500 text-black font-bold hover:bg-amber-600 transition"
+            >
+              Tentar Novamente
+            </button>
+          </div>
+        ) : signedUrl ? (
           <div className="w-full max-w-4xl h-full bg-[#0D0F12] rounded-xl border border-[#1D2230] overflow-hidden shadow-2xl flex flex-col">
             <iframe
-              src={`${pdfUrl}#toolbar=0`}
+              src={`${signedUrl}#toolbar=0`}
               title={product.title}
               className="w-full h-full min-h-[500px] border-0"
             />
