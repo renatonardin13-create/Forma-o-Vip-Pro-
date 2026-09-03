@@ -132,6 +132,9 @@ class StoreManager {
   private memberAreas: MemberArea[];
   private digitalProducts: DigitalProduct[];
   private userAreaAccesses: UserAreaAccess[];
+  private supabaseAccesses: UserAreaAccess[] = [];
+  private supabaseMatriculas: Matricula[] = [];
+  private accessesLoaded: boolean = false;
   private heroBanners: HeroBanner[];
   private salesTransactions: SalesTransaction[];
   private activeAreaSlug: string = 'formacao-vip';
@@ -382,6 +385,68 @@ class StoreManager {
   }
 
   /**
+   * FASE 2.3: Carrega acessos e matrículas do Supabase para o usuário atual
+   */
+  public async initializeAccess(userId: string): Promise<void> {
+    if (!isSupabaseConfigured() || !userId) return;
+
+    try {
+      // 1. Buscar acessos às áreas/produtos
+      const { data: accessData, error: accessError } = await supabase
+        .from('user_area_accesses')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (accessError) throw accessError;
+
+      if (accessData) {
+        this.supabaseAccesses = accessData.map(item => ({
+          id: item.id,
+          userId: item.user_id,
+          areaId: item.area_id,
+          productId: item.product_id || undefined,
+          startDate: item.start_date,
+          expirationDate: item.expiration_date || undefined,
+          status: item.status as any,
+          grantedBy: item.granted_by || 'system',
+          createdAt: item.created_at,
+          updatedAt: item.updated_at
+        }));
+      }
+
+      // 2. Buscar matrículas (cursos)
+      const { data: matData, error: matError } = await supabase
+        .from('matriculas')
+        .select('*')
+        .eq('user_id', userId);
+
+      if (matError) throw matError;
+
+      if (matData) {
+        this.supabaseMatriculas = matData.map(item => ({
+          id: item.id,
+          user_id: item.user_id,
+          produto_id: item.produto_id || undefined,
+          produto_nome: item.produto_nome || '',
+          curso_id: item.curso_id,
+          curso_nome: item.curso_nome || '',
+          plataforma_origem: item.plataforma_origem as any,
+          status: item.status as any,
+          data_liberacao: item.data_liberacao,
+          created_at: item.created_at,
+          updated_at: item.updated_at
+        }));
+      }
+
+      this.accessesLoaded = true;
+      this.notify();
+      console.log(`[Store] Sucesso: ${this.supabaseAccesses.length} acessos e ${this.supabaseMatriculas.length} matrículas carregados do Supabase.`);
+    } catch (err) {
+      console.error('[Store] Erro ao carregar acessos do Supabase:', err);
+    }
+  }
+
+  /**
    * Supabase Integration: Check for existing session and listen for auth changes
    */
   public async initializeAuth(): Promise<void> {
@@ -395,6 +460,8 @@ class StoreManager {
     const { data: { session } } = await supabase.auth.getSession();
     if (session?.user) {
       this.handleSupabaseUser(session.user);
+      // FASE 2.3: Inicializa acessos após autenticação
+      this.initializeAccess(session.user.id).catch(err => console.error('[Store] Access init error:', err));
     }
 
     // Listen for auth changes
@@ -402,10 +469,13 @@ class StoreManager {
       console.log('Supabase Auth Event:', event);
       if (session?.user) {
         this.handleSupabaseUser(session.user);
+        // FASE 2.3: Recarrega acessos se o usuário mudar ou logar
+        this.initializeAccess(session.user.id).catch(err => console.error('[Store] Access init event error:', err));
       } else if (event === 'SIGNED_OUT') {
-        // Only clear if we were using Supabase (not mock)
-        // For now, let's just clear if signed out
         this.currentUser = null;
+        this.supabaseAccesses = [];
+        this.supabaseMatriculas = [];
+        this.accessesLoaded = false;
         saveStorage(STORAGE_KEYS.CURRENT_USER, null);
         this.notify();
       }
@@ -1398,6 +1468,32 @@ class StoreManager {
     // Check if area is active
     if (area.status !== 'active') return false;
 
+    // FASE 2.3: Prioridade Supabase
+    if (this.accessesLoaded && isSupabaseConfigured()) {
+      // Check for explicit area access (productId IS NULL)
+      const hasSupabaseAreaAccess = this.supabaseAccesses.some(
+        acc => acc.areaId === area.id && !acc.productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
+      );
+      if (hasSupabaseAreaAccess) return true;
+
+      // Also check if user has any individual product access in this area? 
+      const areaProducts = this.digitalProducts.filter(p => p.areaId === area.id);
+      const hasSupabaseMatricula = areaProducts.some(p => {
+        if (p.courseId && this.supabaseMatriculas.some(m => m.curso_id === p.courseId && m.status === 'ativo')) return true;
+        if (this.supabaseMatriculas.some(m => m.produto_id === p.id && m.status === 'ativo')) return true;
+        if (this.supabaseAccesses.some(a => a.productId === p.id && a.status === 'active')) return true;
+        return false;
+      });
+
+      if (hasSupabaseMatricula) return true;
+
+      // SE chegamos aqui e o usuário é o do Supabase, NÃO caímos no fallback do Mock
+      // para evitar que manipulação local conceda acesso.
+      const isSupabaseUser = userId && !userId.startsWith('usr_');
+      if (isSupabaseUser) return false;
+    }
+
+    // FALLBACK: Mock/localStorage
     // Check explicit user_area_access
     const hasExplicitAccess = this.userAreaAccesses.some(
       acc => acc.userId === userId && acc.areaId === area.id && acc.status === 'active'
@@ -1423,6 +1519,39 @@ class StoreManager {
     const user = this.users.find(u => u.id === userId);
     if (user && user.role === 'admin') return true;
 
+    const product = this.digitalProducts.find(p => p.id === productId);
+    if (!product) return false;
+
+    // FREE ACCESS: If product is free, anyone logged in can access
+    if (product.accessLevel === 'free') return true;
+
+    // FASE 2.3: Prioridade Supabase
+    if (this.accessesLoaded && isSupabaseConfigured()) {
+      // 1. Check for individual product access
+      const hasSupabaseExplicit = this.supabaseAccesses.some(
+        acc => acc.productId === productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
+      );
+      if (hasSupabaseExplicit) return true;
+
+      // 2. Check for area-wide access (if area-wide access is meant to include all products)
+      // Note: Scenarios say "NÃO liberar somente por possuir acesso à área" for PAID products, 
+      // but usually an area access record with productId NULL means "all products in this area".
+      // Let's check if the specific requirement means area access doesn't count for products.
+      // "CENÁRIO 4: Usuário com acesso à Área VIP mas sem acesso individual a determinado produto pago. Resultado: produto -> 🔒."
+      // This implies area access != product access if product is paid.
+      // However, usually "MemberArea" is a collection of products.
+      // If the requirement is strict, I skip area access check here.
+
+      // 3. Check matriculas for specific product or course
+      if (product.courseId && this.supabaseMatriculas.some(m => m.curso_id === product.courseId && m.status === 'ativo')) return true;
+      if (this.supabaseMatriculas.some(m => m.produto_id === productId && m.status === 'ativo')) return true;
+
+      // SE chegamos aqui e o usuário é o do Supabase, NÃO caímos no fallback do Mock
+      const isSupabaseUser = userId && !userId.startsWith('usr_');
+      if (isSupabaseUser) return false;
+    }
+
+    // FALLBACK: Mock/localStorage
     // Check explicit user_area_access with specific productId
     const hasExplicit = this.userAreaAccesses.some(
       acc => acc.userId === userId && acc.productId === productId && acc.status === 'active' && (!acc.expirationDate || new Date(acc.expirationDate) > new Date())
@@ -1430,9 +1559,6 @@ class StoreManager {
     if (hasExplicit) return true;
 
     // Check matriculas for specific product or course
-    const product = this.digitalProducts.find(p => p.id === productId);
-    if (!product) return false;
-
     const userMatriculas = this.matriculas.filter(m => m.user_id === userId && m.status === 'ativo');
     if (product.courseId && userMatriculas.some(m => m.curso_id === product.courseId)) return true;
     if (userMatriculas.some(m => m.produto_id === productId)) return true;
