@@ -59,6 +59,7 @@ import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHe
 
 export const AdminPanel: React.FC = () => {
   const { 
+    currentUser,
     courses, 
     users, 
     loginConfig, 
@@ -80,6 +81,11 @@ export const AdminPanel: React.FC = () => {
     adminTab,
     setAdminTab
   } = useStore();
+
+  // SECURITY: Prevent rendering if not an admin
+  if (currentUser?.role !== 'admin') {
+    return null;
+  }
 
   const activeAdminTab = adminTab || 'dashboard';
   const setActiveAdminTab = (tab: string) => setAdminTab(tab);

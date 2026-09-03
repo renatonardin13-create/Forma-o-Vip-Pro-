@@ -238,31 +238,33 @@ export const Header: React.FC<HeaderProps> = ({
           <span className="text-[11px] font-black tracking-wider text-[#F5D76E]">MEMBRO PREMIUM</span>
         </div>
 
-        {/* Quick Demo Role Switcher button */}
-        <div className="hidden md:flex items-center bg-[#151922] p-1 rounded-xl border border-[#1D2230]">
-          <button
-            onClick={() => switchDemoAccount('student')}
-            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition ${
-              currentUser?.role === 'student'
-                ? 'bg-[#D4AF37] text-black shadow-sm'
-                : 'text-[#A7AFBF] hover:text-white'
-            }`}
-            title="Alternar para Aluno Demo"
-          >
-            Aluno VIP
-          </button>
-          <button
-            onClick={() => switchDemoAccount('admin')}
-            className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition ${
-              currentUser?.role === 'admin'
-                ? 'bg-[#D4AF37] text-black shadow-sm'
-                : 'text-[#A7AFBF] hover:text-white'
-            }`}
-            title="Alternar para Administrador Master"
-          >
-            Admin VIP
-          </button>
-        </div>
+        {/* Quick Demo Role Switcher button - ONLY SHOW FOR ADMINS */}
+        {currentUser?.role === 'admin' && (
+          <div className="hidden md:flex items-center bg-[#151922] p-1 rounded-xl border border-[#1D2230]">
+            <button
+              onClick={() => switchDemoAccount('student')}
+              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition ${
+                (currentUser?.role as string) === 'student'
+                  ? 'bg-[#D4AF37] text-black shadow-sm'
+                  : 'text-[#A7AFBF] hover:text-white'
+              }`}
+              title="Alternar para Aluno Demo"
+            >
+              Aluno VIP
+            </button>
+            <button
+              onClick={() => switchDemoAccount('admin')}
+              className={`px-2.5 py-1 text-[10px] font-bold rounded-lg transition ${
+                currentUser?.role === 'admin'
+                  ? 'bg-[#D4AF37] text-black shadow-sm'
+                  : 'text-[#A7AFBF] hover:text-white'
+              }`}
+              title="Alternar para Administrador Master"
+            >
+              Admin VIP
+            </button>
+          </div>
+        )}
 
         {/* Favorites Quick Button */}
         <button

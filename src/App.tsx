@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { useStore } from './services/store';
 import { Sidebar } from './components/Sidebar';
 import { Header } from './components/Header';
+import { ShieldAlert } from 'lucide-react';
 import { StudentDashboard } from './components/StudentDashboard';
 import { CourseCatalog } from './components/CourseCatalog';
 import { CourseDetail } from './components/CourseDetail';
@@ -29,8 +30,13 @@ export default function App() {
     memberAreas, 
     checkUserAreaAccess,
     adminTab,
-    setAdminTab
+    setAdminTab,
+    initializeAuth
   } = useStore();
+
+  useEffect(() => {
+    initializeAuth();
+  }, []);
   
   // URL routing state
   const [currentPath, setCurrentPath] = useState<string>(() => {
@@ -135,6 +141,31 @@ export default function App() {
             navigateToRoute('admin');
           }} 
         />
+      );
+    }
+
+    // AUTH CHECK: Only admins can access the admin panel
+    if (currentUser.role !== 'admin') {
+      return (
+        <div className="min-h-screen bg-[#08090C] text-white flex items-center justify-center p-6">
+          <div className="max-w-md w-full bg-[#0D0F12] border border-[#1D2230] rounded-3xl p-8 text-center space-y-6">
+            <div className="w-20 h-20 bg-rose-500/10 rounded-full flex items-center justify-center mx-auto border border-rose-500/20">
+              <ShieldAlert className="w-10 h-10 text-rose-500" />
+            </div>
+            <div className="space-y-2">
+              <h2 className="text-2xl font-bold text-white">Acesso Restrito</h2>
+              <p className="text-sm text-[#8E9BB0] leading-relaxed">
+                Você não tem permissão para acessar esta área. Esta página é exclusiva para administradores do sistema.
+              </p>
+            </div>
+            <button
+              onClick={() => navigateToRoute('aluno')}
+              className="w-full py-3.5 px-6 rounded-2xl bg-[#D4AF37] text-black font-bold hover:bg-[#F5D76E] transition shadow-lg shadow-[#D4AF37]/20"
+            >
+              Voltar para Área do Aluno
+            </button>
+          </div>
+        </div>
       );
     }
 

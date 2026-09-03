@@ -38,6 +38,7 @@ import {
   INITIAL_SALES_TRANSACTIONS
 } from '../data/mockData';
 import { MemberArea, DigitalProduct, UserAreaAccess } from '../types';
+import { supabase, isSupabaseConfigured } from './supabase';
 
 const STORAGE_KEYS = {
   CURRENT_USER: 'vip_pro_current_user',
@@ -136,6 +137,7 @@ class StoreManager {
   private activeAreaSlug: string = 'formacao-vip';
   private adminTab: string = 'dashboard';
   private listeners: Set<() => void> = new Set();
+  private authInitialized: boolean = false;
 
   constructor() {
     this.currentUser = loadStorage<User | null>(STORAGE_KEYS.CURRENT_USER, INITIAL_USER);
@@ -280,7 +282,7 @@ class StoreManager {
         name: email.split('@')[0].replace('.', ' ').toUpperCase(),
         email: email,
         avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
-        role: email.toLowerCase().includes('admin') ? 'admin' : 'student',
+        role: email.toLowerCase() === 'admin@formacaovippro.com.br' ? 'admin' : 'student',
         plan: 'MEMBRO PREMIUM VIP',
         registeredAt: new Date().toISOString().split('T')[0],
         lastAccessAt: new Date().toLocaleString('pt-BR'),
@@ -305,7 +307,78 @@ class StoreManager {
   public logout(): void {
     this.currentUser = null;
     saveStorage(STORAGE_KEYS.CURRENT_USER, null);
+    
+    // Also logout from Supabase if configured
+    if (isSupabaseConfigured()) {
+      supabase.auth.signOut().catch(err => console.error('Supabase signout error:', err));
+    }
+    
     this.notify();
+  }
+
+  /**
+   * Supabase Integration: Check for existing session and listen for auth changes
+   */
+  public async initializeAuth(): Promise<void> {
+    if (this.authInitialized || !isSupabaseConfigured()) return;
+    this.authInitialized = true;
+
+    // Get current session
+    const { data: { session } } = await supabase.auth.getSession();
+    if (session?.user) {
+      this.handleSupabaseUser(session.user);
+    }
+
+    // Listen for auth changes
+    supabase.auth.onAuthStateChange(async (event, session) => {
+      console.log('Supabase Auth Event:', event);
+      if (session?.user) {
+        this.handleSupabaseUser(session.user);
+      } else if (event === 'SIGNED_OUT') {
+        // Only clear if we were using Supabase (not mock)
+        // For now, let's just clear if signed out
+        this.currentUser = null;
+        saveStorage(STORAGE_KEYS.CURRENT_USER, null);
+        this.notify();
+      }
+    });
+  }
+
+  private handleSupabaseUser(supabaseUser: any): void {
+    // Check if user already exists in our list
+    const existingUser = this.users.find(u => u.email.toLowerCase() === supabaseUser.email?.toLowerCase());
+    
+    if (existingUser) {
+      // Map Supabase ID if not already done (gradual migration)
+      // For now, we use email as the primary link between systems
+      this.currentUser = { ...existingUser };
+      saveStorage(STORAGE_KEYS.CURRENT_USER, this.currentUser);
+      this.notify();
+    } else {
+      // Auto-create student based on Supabase info
+      const newUser: User = {
+        id: supabaseUser.id,
+        name: supabaseUser.user_metadata?.full_name || supabaseUser.email?.split('@')[0].toUpperCase() || 'ALUNO VIP',
+        email: supabaseUser.email || '',
+        avatar: supabaseUser.user_metadata?.avatar_url || 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=200&q=80',
+        role: 'student', // Default for new signups
+        plan: 'MEMBRO PREMIUM VIP',
+        registeredAt: new Date().toISOString().split('T')[0],
+        lastAccessAt: new Date().toLocaleString('pt-BR'),
+        status: 'active',
+        stats: {
+          activeCourses: 1,
+          completedLessons: 0,
+          studyTimeMinutes: 0,
+          certificatesCount: 0,
+        }
+      };
+      this.users.push(newUser);
+      this.currentUser = newUser;
+      saveStorage(STORAGE_KEYS.USERS_LIST, this.users);
+      saveStorage(STORAGE_KEYS.CURRENT_USER, this.currentUser);
+      this.notify();
+    }
   }
 
   public switchDemoAccount(type: 'student' | 'admin'): void {
@@ -1508,6 +1581,8 @@ export function useStore() {
     toggleDigitalProductStatus: (id: string) => store.toggleDigitalProductStatus(id),
     checkUserAreaAccess: (userId: string, areaIdOrSlug: string) => store.checkUserAreaAccess(userId, areaIdOrSlug),
     hasProductAccess: (userId: string, productId: string) => store.hasProductAccess(userId, productId),
+    initializeAuth: () => store.initializeAuth(),
+    isSupabaseEnabled: isSupabaseConfigured(),
     grantUserAreaAccess: (data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }) => 
       store.grantUserAreaAccess(data),
     revokeUserAreaAccess: (id: string) => store.revokeUserAreaAccess(id),
