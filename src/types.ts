@@ -333,6 +333,8 @@ export interface DigitalProduct {
   salesPageUrl?: string;
   presellUrl?: string;
   checkoutUrl?: string;
+  externalProductId?: string;
+  platform?: 'kiwify' | 'perfectpay' | 'todas';
   autoLiberarAposCompra?: boolean;
 }
 

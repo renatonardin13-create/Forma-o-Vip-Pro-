@@ -1285,10 +1285,12 @@ export const INITIAL_DIGITAL_PRODUCTS: DigitalProduct[] = [
     publishedAt: '2025-01-01',
     salesStrategy: 'sales_page',
     salesPageUrl: 'https://depois-dos-60.vercel.app/',
+    externalProductId: 'PENDENTE',
+    checkoutUrl: '',
     ebook: {
       pageCount: 50,
       fileFormat: 'PDF',
-      pdfUrl: '' // PENDENTE
+      pdfUrl: '' // PENDENTE: Arquivo real será carregado pelo administrador futuramente
     },
     storagePath: 'prod-depois-dos-60-real/depois-dos-60-50-cuidados.pdf',
     coverUrl: 'https://api.iconify.design/lucide:book-open.svg?color=%23D4AF37',

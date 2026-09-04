@@ -1,11 +1,12 @@
 // Supabase Edge Function: webhook-liberacao-acesso
-// Handles sales notifications from Kiwify and PerfectPay
-// Automatically provisions member access, enrollments, user accounts, and dispatches luxury welcome emails via Resend.
+// Handles sales notifications from Kiwify and PerfectPay with pluggable GatewayAdapters.
+// Enforces strict mapping rule: external_product_id -> produtos_cursos -> digital_product_id / area_id / curso_id
+// Strictly forbids heuristic, ILIKE, or name-based access grants. Zero fallbacks for unmapped products.
 
 import { serve } from "https://deno.land/std@0.177.0/http/server.ts";
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.39.8";
 
-// Security & Environment Variables
+// Security & Environment Variables (Server-Only Secrets)
 const SUPABASE_URL = Deno.env.get("SUPABASE_URL") ?? "";
 const SUPABASE_SERVICE_ROLE_KEY = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY") ?? "";
 const KIWIFY_WEBHOOK_TOKEN = Deno.env.get("KIWIFY_WEBHOOK_TOKEN") ?? "";
@@ -27,7 +28,242 @@ const corsHeaders = {
   "Access-Control-Allow-Methods": "POST, OPTIONS, GET",
 };
 
-// Helper: Generate Secure Random 12-char Password
+// ============================================================================
+// 1. NORMALIZAÇÃO DE STATUS E TIPOS DO ADAPTER
+// ============================================================================
+export type NormalizedPaymentStatus =
+  | "APPROVED"    // Compra aprovada / paga
+  | "PENDING"     // Aguardando pagamento (PIX / Boleto)
+  | "REFUNDED"    // Reembolso solicitado / concluído
+  | "CHARGEBACK"  // Chargeback / disputa financeira
+  | "CANCELLED"   // Compra cancelada antes do pagamento
+  | "FAILED"      // Pagamento recusado / falha de cartão
+  | "UNKNOWN";    // Status não reconhecido
+
+export interface NormalizedWebhookEvent {
+  platform: "kiwify" | "perfectpay";
+  rawEvent: string;
+  normalizedStatus: NormalizedPaymentStatus;
+  externalOrderId: string;
+  externalProductId: string;
+  productName: string;
+  buyerEmail: string;
+  buyerName: string;
+  timestamp: string;
+  idempotencyKey: string;
+  tokenProvided?: string;
+  rawPayload: any;
+}
+
+export interface GatewayAdapter {
+  name: "kiwify" | "perfectpay";
+  validateAuth(event: NormalizedWebhookEvent): { valid: boolean; reason?: string };
+  normalize(body: any, req: Request, url: URL): NormalizedWebhookEvent;
+}
+
+// ============================================================================
+// 2. ADAPTER KIWIFY
+// ============================================================================
+export const KiwifyAdapter: GatewayAdapter = {
+  name: "kiwify",
+
+  validateAuth(event: NormalizedWebhookEvent): { valid: boolean; reason?: string } {
+    if (!KIWIFY_WEBHOOK_TOKEN) {
+      // Se a variável não estiver configurada no ambiente, registra aviso no console
+      console.warn("[KiwifyAdapter] KIWIFY_WEBHOOK_TOKEN não configurada no Supabase Secrets.");
+      return { valid: true };
+    }
+    const token = event.tokenProvided || "";
+    if (token !== KIWIFY_WEBHOOK_TOKEN) {
+      return { valid: false, reason: "Token de segurança Kiwify inválido ou ausente." };
+    }
+    return { valid: true };
+  },
+
+  normalize(body: any, req: Request, url: URL): NormalizedWebhookEvent {
+    const orderStatus = (body.order_status || body.status || "").toLowerCase().trim();
+    const eventName = (body.event || "").toLowerCase().trim();
+
+    let normalizedStatus: NormalizedPaymentStatus = "UNKNOWN";
+
+    if (
+      orderStatus === "paid" ||
+      orderStatus === "approved" ||
+      eventName === "compra_aprovada" ||
+      eventName === "order_approved"
+    ) {
+      normalizedStatus = "APPROVED";
+    } else if (
+      orderStatus === "waiting_payment" ||
+      orderStatus === "pending" ||
+      orderStatus === "boleto" ||
+      orderStatus === "pix" ||
+      eventName === "waiting_payment"
+    ) {
+      normalizedStatus = "PENDING";
+    } else if (
+      orderStatus === "refunded" ||
+      eventName === "order_refunded" ||
+      eventName === "reembolso"
+    ) {
+      normalizedStatus = "REFUNDED";
+    } else if (
+      orderStatus === "chargedback" ||
+      orderStatus === "chargeback" ||
+      eventName === "order_chargeback"
+    ) {
+      normalizedStatus = "CHARGEBACK";
+    } else if (
+      orderStatus === "cancelled" ||
+      orderStatus === "canceled" ||
+      eventName === "order_cancelled"
+    ) {
+      normalizedStatus = "CANCELLED";
+    } else if (orderStatus === "refused" || orderStatus === "failed") {
+      normalizedStatus = "FAILED";
+    }
+
+    const externalOrderId = (body.order_id || body.order_ref || body.id || "").toString().trim();
+    // Extrai estritamente o ID do produto sem fallback genérico
+    const rawProductId = (body.Product?.product_id || body.product?.id || body.product_id || "").toString().trim();
+    const productName = (body.Product?.product_name || body.product?.name || body.product_name || "Produto Kiwify").toString().trim();
+
+    const buyerEmail = (body.Customer?.email || body.customer?.email || body.email || "").toString().trim().toLowerCase();
+    const buyerName = (body.Customer?.full_name || body.customer?.name || body.name || "").toString().trim();
+
+    const tokenProvided =
+      body.signature ||
+      body.token ||
+      body.webhook_token ||
+      url.searchParams.get("token") ||
+      req.headers.get("x-kiwify-signature") ||
+      req.headers.get("x-webhook-token") ||
+      "";
+
+    const idempotencyKey = externalOrderId
+      ? `kw_${externalOrderId}_${normalizedStatus}`
+      : `kw_${buyerEmail}_${rawProductId}_${Date.now()}`;
+
+    return {
+      platform: "kiwify",
+      rawEvent: eventName || orderStatus || "webhook_event",
+      normalizedStatus,
+      externalOrderId,
+      externalProductId: rawProductId,
+      productName,
+      buyerEmail,
+      buyerName,
+      timestamp: new Date().toISOString(),
+      idempotencyKey,
+      tokenProvided,
+      rawPayload: body,
+    };
+  },
+};
+
+// ============================================================================
+// 3. ADAPTER PERFECTPAY
+// ============================================================================
+export const PerfectPayAdapter: GatewayAdapter = {
+  name: "perfectpay",
+
+  validateAuth(event: NormalizedWebhookEvent): { valid: boolean; reason?: string } {
+    if (!PERFECTPAY_WEBHOOK_TOKEN) {
+      console.warn("[PerfectPayAdapter] PERFECTPAY_WEBHOOK_TOKEN não configurada no Supabase Secrets.");
+      return { valid: true };
+    }
+    const token = event.tokenProvided || "";
+    if (token !== PERFECTPAY_WEBHOOK_TOKEN) {
+      return { valid: false, reason: "Token de segurança PerfectPay inválido ou ausente." };
+    }
+    return { valid: true };
+  },
+
+  normalize(body: any, req: Request, url: URL): NormalizedWebhookEvent {
+    const saleStatusEnum = (body.sale_status_enum || body.status || "").toString().toLowerCase().trim();
+
+    let normalizedStatus: NormalizedPaymentStatus = "UNKNOWN";
+
+    // PerfectPay status enums: 2=Aprovado, 1=Pendente, 4=Reembolsado, 7=Chargeback, 3=Cancelado, 5=Recusado
+    if (
+      saleStatusEnum === "approved" ||
+      saleStatusEnum === "authorized" ||
+      saleStatusEnum === "complete" ||
+      saleStatusEnum === "2"
+    ) {
+      normalizedStatus = "APPROVED";
+    } else if (
+      saleStatusEnum === "pending" ||
+      saleStatusEnum === "waiting_payment" ||
+      saleStatusEnum === "1"
+    ) {
+      normalizedStatus = "PENDING";
+    } else if (
+      saleStatusEnum === "refunded" ||
+      saleStatusEnum === "4" ||
+      saleStatusEnum === "6"
+    ) {
+      normalizedStatus = "REFUNDED";
+    } else if (
+      saleStatusEnum === "chargeback" ||
+      saleStatusEnum === "7"
+    ) {
+      normalizedStatus = "CHARGEBACK";
+    } else if (
+      saleStatusEnum === "cancelled" ||
+      saleStatusEnum === "canceled" ||
+      saleStatusEnum === "3"
+    ) {
+      normalizedStatus = "CANCELLED";
+    } else if (
+      saleStatusEnum === "refused" ||
+      saleStatusEnum === "failed" ||
+      saleStatusEnum === "5"
+    ) {
+      normalizedStatus = "FAILED";
+    }
+
+    const externalOrderId = (body.sale_code || body.order_id || body.code || "").toString().trim();
+    // Extrai estritamente o ID do produto sem fallback genérico
+    const rawProductId = (body.product?.code || body.product?.id || body.product_code || body.product_id || "").toString().trim();
+    const productName = (body.product?.name || body.product_name || "Produto PerfectPay").toString().trim();
+
+    const buyerEmail = (body.customer?.email || body.customer_email || body.client?.email || body.email || "").toString().trim().toLowerCase();
+    const buyerName = (body.customer?.name || body.customer_name || body.client?.name || body.name || "").toString().trim();
+
+    const tokenProvided =
+      body.token ||
+      body.webhook_token ||
+      body.security_token ||
+      url.searchParams.get("token") ||
+      req.headers.get("x-webhook-token") ||
+      "";
+
+    const idempotencyKey = externalOrderId
+      ? `pp_${externalOrderId}_${normalizedStatus}`
+      : `pp_${buyerEmail}_${rawProductId}_${Date.now()}`;
+
+    return {
+      platform: "perfectpay",
+      rawEvent: saleStatusEnum || "webhook_event",
+      normalizedStatus,
+      externalOrderId,
+      externalProductId: rawProductId,
+      productName,
+      buyerEmail,
+      buyerName,
+      timestamp: new Date().toISOString(),
+      idempotencyKey,
+      tokenProvided,
+      rawPayload: body,
+    };
+  },
+};
+
+// ============================================================================
+// 4. HELPERS DE APOIO (SENHA, E-MAIL, LOGS)
+// ============================================================================
+
 function generateSecurePassword(length = 12): string {
   const upper = "ABCDEFGHJKLMNPQRSTUVWXYZ";
   const lower = "abcdefghijkmnopqrstuvwxyz";
@@ -39,7 +275,6 @@ function generateSecurePassword(length = 12): string {
   crypto.getRandomValues(randomBytes);
 
   let password = "";
-  // Guarantee at least one of each category
   password += upper[randomBytes[0] % upper.length];
   password += lower[randomBytes[1] % lower.length];
   password += digits[randomBytes[2] % digits.length];
@@ -49,22 +284,20 @@ function generateSecurePassword(length = 12): string {
     password += all[randomBytes[i] % all.length];
   }
 
-  // Shuffle the password characters
   return password
     .split("")
     .sort(() => 0.5 - Math.random())
     .join("");
 }
 
-// Helper: Send Transactional Luxury Welcome Email via Resend
 async function sendWelcomeEmail(
   toEmail: string,
   studentName: string,
   tempPassword: string,
-  courseName: string
+  contentTitle: string
 ) {
   if (!RESEND_API_KEY) {
-    console.warn("[Email] RESEND_API_KEY not configured. Skipping email dispatch.");
+    console.warn("[Email] RESEND_API_KEY não configurada. Notificação por e-mail ignorada.");
     return { success: false, reason: "RESEND_API_KEY not configured" };
   }
 
@@ -101,20 +334,17 @@ async function sendWelcomeEmail(
   <body>
     <div style="padding: 24px 12px;">
       <div class="container">
-        <!-- Header -->
         <div class="header">
           <div class="logo-badge">ÁREA DE MEMBROS VIP</div>
           <h1 class="title">Parabéns, ${firstName}!</h1>
-          <p class="subtitle">Seu acesso ao conteúdo <strong>${courseName}</strong> está pronto.</p>
+          <p class="subtitle">Seu acesso ao conteúdo <strong>${contentTitle}</strong> foi liberado.</p>
         </div>
 
-        <!-- Content -->
         <div class="content">
           <p class="welcome-text">
-            Olá, <strong>${studentName}</strong>! Identificamos o seu pagamento com sucesso. A sua conta foi provisionada em nossa plataforma premium e todas as aulas e materiais já estão disponíveis.
+            Olá, <strong>${studentName}</strong>! Identificamos o seu pagamento com sucesso. A sua conta foi provisionada em nossa plataforma premium e os conteúdos já estão disponíveis.
           </p>
 
-          <!-- Credentials Box -->
           <div class="card-credentials">
             <div class="card-title">DADOS PARA SEU PRIMEIRO ACESSO</div>
             <div class="cred-row">
@@ -135,7 +365,6 @@ async function sendWelcomeEmail(
             </div>
           </div>
 
-          <!-- CTA Button -->
           <div class="btn-container">
             <a href="${APP_LOGIN_URL}" class="btn-primary" target="_blank">
               ACESSAR ÁREA DE MEMBROS AGORA →
@@ -143,10 +372,9 @@ async function sendWelcomeEmail(
           </div>
         </div>
 
-        <!-- Footer -->
         <div class="footer">
           <p>© 2026 Formação VIP Pro. Todos os direitos reservados.</p>
-          <p>Se tiver dúvidas, responda a este e-mail para contatar o nosso suporte.</p>
+          <p>Se tiver dúvidas, responda a este e-mail para contatar o suporte oficial.</p>
         </div>
       </div>
     </div>
@@ -164,7 +392,7 @@ async function sendWelcomeEmail(
       body: JSON.stringify({
         from: "Formação VIP <acesso@formacaovip.pro>",
         to: [toEmail],
-        subject: `🎉 Acesso Liberado: ${courseName} - Suas credenciais`,
+        subject: `🎉 Acesso Liberado: ${contentTitle} - Suas credenciais`,
         html: emailHtml,
       }),
     });
@@ -183,7 +411,6 @@ async function sendWelcomeEmail(
   }
 }
 
-// Helper: Write Log to Supabase `webhook_logs` table
 async function logWebhookExecution(params: {
   plataforma: string;
   evento: string;
@@ -216,127 +443,226 @@ async function logWebhookExecution(params: {
   }
 }
 
-// Helper: Process Approved Sale (Create/Find User, Create Matricula, Send Email)
-async function processApprovedSale(params: {
-  plataforma: "kiwify" | "perfectpay";
-  buyerEmail: string;
-  buyerName: string;
-  productId: string;
-  productName: string;
-  payload: any;
-}) {
-  const { plataforma, buyerEmail, buyerName, productId, productName, payload } = params;
-  const cleanEmail = buyerEmail.trim().toLowerCase();
-  const cleanName = buyerName.trim() || cleanEmail.split("@")[0];
+// ============================================================================
+// 5. NÚCLEO DE MAPEAMENTO E PROCESSAMENTO CENTRAL
+// ============================================================================
 
-  // 1. Find Product -> Course Mapping in `produtos_cursos`
-  let mappedCourseId = "course-default";
-  let mappedCourseName = productName || "Formação VIP PRO";
+interface ProcessResult {
+  success: boolean;
+  httpStatus: number;
+  message: string;
+  data?: any;
+}
 
-  const { data: mappingData, error: mapErr } = await supabase
+async function processEvent(event: NormalizedWebhookEvent): Promise<ProcessResult> {
+  const {
+    platform,
+    normalizedStatus,
+    externalOrderId,
+    externalProductId,
+    productName,
+    buyerEmail,
+    buyerName,
+    rawPayload,
+  } = event;
+
+  // 1. Validação do e-mail do comprador
+  if (!buyerEmail || !buyerEmail.includes("@")) {
+    const errorMsg = `E-mail do comprador inválido ou ausente: "${buyerEmail}".`;
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: event.rawEvent,
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId,
+      produto_nome: productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: errorMsg,
+      payload_bruto: rawPayload,
+    });
+    return { success: false, httpStatus: 400, message: errorMsg };
+  }
+
+  // 2. Validação do produto_id externo (Regra do PENDENTE e ausência de ID)
+  if (
+    !externalProductId ||
+    externalProductId === "PENDENTE" ||
+    externalProductId === "pendente" ||
+    externalProductId.trim().length === 0
+  ) {
+    const errorMsg = `Produto externo pendente de configuração comercial ou ausente ("${externalProductId}"). Liberação recusada por segurança.`;
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: event.rawEvent,
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId || "PENDENTE",
+      produto_nome: productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: errorMsg,
+      payload_bruto: rawPayload,
+    });
+    return { success: false, httpStatus: 422, message: errorMsg };
+  }
+
+  // 3. Consulta de mapeamento estrito na tabela produtos_cursos
+  // REGRA ABSOLUTA: APENAS busca por igualdade estrita de produto_id e ativo = true
+  const { data: mappingRows, error: mapErr } = await supabase
     .from("produtos_cursos")
-    .select("curso_id, curso_nome, area_id, digital_product_id")
-    .eq("produto_id", productId)
+    .select("id, produto_id, produto_nome, curso_id, curso_nome, area_id, digital_product_id, ativo")
+    .eq("produto_id", externalProductId)
     .eq("ativo", true);
 
   if (mapErr) {
-    console.error("[Webhook] Erro ao buscar mapeamento:", mapErr.message);
-  }
-
-  if (mappingData && mappingData.length > 1) {
-    console.error(`[Webhook] CONFLITO: Múltiplos mapeamentos encontrados para o produto_id: ${productId}.`);
-    // Em caso de conflito, não liberamos nada para evitar inconsistência
-    throw new Error(`Conflito de mapeamento: múltiplos destinos para o produto ${productId}.`);
-  }
-
-  if (mappingData && mappingData.length === 1) {
-    mappedCourseId = mappingData[0].curso_id || "course-default";
-    mappedCourseName = mappingData[0].curso_nome || productName;
-  } else if (!mapErr) {
-    console.warn(`[Webhook] Nenhum mapeamento ativo encontrado para produto_id: ${productId}.`);
-    // Se não há mapeamento, não liberamos nada
-    throw new Error(`Produto não mapeado: ${productId}.`);
-  }
-
-  // 2. Check if user already exists in Supabase Auth
-  let userId = "";
-  let isNewUser = false;
-  let tempPassword = "";
-
-  const { data: usersList, error: listUserErr } = await supabase.auth.admin.listUsers();
-  const existingUser = usersList?.users.find(
-    (u) => u.email?.toLowerCase() === cleanEmail
-  );
-
-  if (existingUser) {
-    userId = existingUser.id;
-    console.log(`[Webhook] Usuário existente encontrado: ${cleanEmail} (ID: ${userId})`);
-  } else {
-    // 3. Create new user in Supabase Auth
-    isNewUser = true;
-    tempPassword = generateSecurePassword(12);
-
-    const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
-      email: cleanEmail,
-      password: tempPassword,
-      email_confirm: true,
-      user_metadata: {
-        name: cleanName,
-        origin: plataforma,
-      },
+    const errorMsg = `Falha ao consultar mapeamento no banco de dados: ${mapErr.message}`;
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: event.rawEvent,
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId,
+      produto_nome: productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: errorMsg,
+      payload_bruto: rawPayload,
     });
+    return { success: false, httpStatus: 500, message: errorMsg };
+  }
 
-    if (createErr || !newUser.user) {
-      throw new Error(`Falha ao criar usuário no Supabase Auth: ${createErr?.message}`);
+  // Se houver mais de um mapeamento para o mesmo produto_id externo: CONFLITO!
+  if (mappingRows && mappingRows.length > 1) {
+    const conflictMsg = `CONFLITO DE MAPEAMENTO: Múltiplos destinos (${mappingRows.length}) encontrados para o produto externo ${externalProductId}. Liberação bloqueada por segurança.`;
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: event.rawEvent,
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId,
+      produto_nome: productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: conflictMsg,
+      payload_bruto: rawPayload,
+    });
+    return { success: false, httpStatus: 409, message: conflictMsg };
+  }
+
+  // Se não encontrar nenhum mapeamento ativo:
+  if (!mappingRows || mappingRows.length === 0) {
+    const unmappedMsg = `Produto externo não mapeado: ${externalProductId}. Nenhuma liberação autorizada.`;
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: event.rawEvent,
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId,
+      produto_nome: productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: unmappedMsg,
+      payload_bruto: rawPayload,
+    });
+    return { success: false, httpStatus: 422, message: unmappedMsg };
+  }
+
+  const mapping = mappingRows[0];
+  const { digital_product_id, area_id, curso_id, curso_nome } = mapping;
+  const contentTitle = curso_nome || productName || "Conteúdo VIP";
+
+  // ==========================================================================
+  // FLUXO A: COMPRA APROVADA (APPROVED)
+  // ==========================================================================
+  if (normalizedStatus === "APPROVED") {
+    // 1. Localizar ou criar usuário no Supabase Auth
+    let userId = "";
+    let isNewUser = false;
+    let tempPassword = "";
+
+    const { data: usersList, error: listErr } = await supabase.auth.admin.listUsers();
+    if (listErr) {
+      const errDetail = `Erro ao listar usuários no Supabase Auth: ${listErr.message}`;
+      await logWebhookExecution({
+        plataforma: platform,
+        evento: "compra_aprovada",
+        email_comprador: buyerEmail,
+        nome_comprador: buyerName,
+        produto_id: externalProductId,
+        produto_nome: productName,
+        status_processamento: "erro",
+        sucesso: false,
+        mensagem_detalhe: errDetail,
+        payload_bruto: rawPayload,
+      });
+      return { success: false, httpStatus: 500, message: errDetail };
     }
 
-    userId = newUser.user.id;
-    console.log(`[Webhook] Novo usuário criado com sucesso: ${cleanEmail} (ID: ${userId})`);
+    const existingUser = usersList?.users.find(
+      (u) => u.email?.toLowerCase() === buyerEmail
+    );
 
-    // Create profile in `perfis` table with `precisa_trocar_senha = true`
-    await supabase.from("perfis").upsert({
-      id: userId,
-      nome: cleanName,
-      email: cleanEmail,
-      role: "student",
-      precisa_trocar_senha: true,
-      avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(cleanName)}`,
-      updated_at: new Date().toISOString(),
-    });
-  }
+    if (existingUser) {
+      userId = existingUser.id;
+    } else {
+      isNewUser = true;
+      tempPassword = generateSecurePassword(12);
 
-  // 4. Register or Update enrollment in `matriculas` (Legacy System)
-  const { data: matricula, error: matErr } = await supabase.from("matriculas").upsert(
-    {
-      user_id: userId,
-      produto_id: productId,
-      produto_nome: productName,
-      curso_id: mappedCourseId,
-      plataforma_origem: plataforma,
-      status: "ativo",
-      data_liberacao: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "user_id, curso_id" }
-  ).select().single();
+      const { data: newUser, error: createErr } = await supabase.auth.admin.createUser({
+        email: buyerEmail,
+        password: tempPassword,
+        email_confirm: true,
+        user_metadata: {
+          name: buyerName || buyerEmail.split("@")[0],
+          origin: platform,
+          external_order_id: externalOrderId,
+        },
+      });
 
-  if (matErr) {
-    console.warn("[Webhook] Aviso ao gravar matrícula:", matErr.message);
-  }
+      if (createErr || !newUser?.user) {
+        const createDetail = `Falha ao criar usuário no Supabase Auth: ${createErr?.message}`;
+        await logWebhookExecution({
+          plataforma: platform,
+          evento: "compra_aprovada",
+          email_comprador: buyerEmail,
+          nome_comprador: buyerName,
+          produto_id: externalProductId,
+          produto_nome: productName,
+          status_processamento: "erro",
+          sucesso: false,
+          mensagem_detalhe: createDetail,
+          payload_bruto: rawPayload,
+        });
+        return { success: false, httpStatus: 500, message: createDetail };
+      }
 
-  // 4.1. NEW: Register or Update Individual Access in `user_area_accesses` (Flexible System)
-  let flexibleAccessStatus = "skipped";
-  if (!mapErr && mappingData && mappingData.length > 0) {
-    const mapping = mappingData[0];
-    const { area_id, digital_product_id } = mapping;
+      userId = newUser.user.id;
 
+      // Criar perfil em perfis com precisa_trocar_senha = true
+      await supabase.from("perfis").upsert({
+        id: userId,
+        nome: buyerName || buyerEmail.split("@")[0],
+        email: buyerEmail,
+        role: "student",
+        precisa_trocar_senha: true,
+        avatar_url: `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(buyerName || buyerEmail)}`,
+        updated_at: new Date().toISOString(),
+      });
+    }
+
+    // 2. Liberação de acesso atômica e idempotente
+    let accessResultDesc = "";
+
+    // 2.1 Liberação em user_area_accesses (Para Produto Digital ou Área Inteira)
     if (digital_product_id) {
-      // UPSERT atômico para produto específico baseado no índice unq_uaa_product_access
-      const { error: accErr } = await supabase.from("user_area_accesses").upsert(
+      // Liberação de produto digital específico
+      const uaaId = `uaa_prod_${userId}_${digital_product_id}`.substring(0, 100);
+      const { error: uaaErr } = await supabase.from("user_area_accesses").upsert(
         {
-          id: `uaa_prod_${userId}_${digital_product_id}`.substring(0, 100),
+          id: uaaId,
           user_id: userId,
-          area_id: area_id,
+          area_id: area_id || "area-vip",
           product_id: digital_product_id,
           status: "active",
           granted_by: "webhook",
@@ -344,18 +670,19 @@ async function processApprovedSale(params: {
         },
         { onConflict: "id" }
       );
-      
-      if (accErr) {
-        console.error("[Webhook] Erro no UPSERT de produto digital:", accErr.message);
-        flexibleAccessStatus = `error_product: ${accErr.message}`;
+
+      if (uaaErr) {
+        console.error("[Webhook] Erro no upsert de user_area_accesses:", uaaErr.message);
+        accessResultDesc += `[Erro Produto: ${uaaErr.message}] `;
       } else {
-        flexibleAccessStatus = `product_active: ${digital_product_id}`;
+        accessResultDesc += `[Produto Digital: ${digital_product_id} ATIVO] `;
       }
     } else if (area_id) {
-      // UPSERT atômico para liberação total da área baseado no índice unq_uaa_area_access
-      const { error: accErr } = await supabase.from("user_area_accesses").upsert(
+      // Liberação de área de membros completa
+      const uaaId = `uaa_area_${userId}_${area_id}`.substring(0, 100);
+      const { error: uaaErr } = await supabase.from("user_area_accesses").upsert(
         {
-          id: `uaa_area_${userId}_${area_id}`.substring(0, 100),
+          id: uaaId,
           user_id: userId,
           area_id: area_id,
           product_id: null,
@@ -366,160 +693,212 @@ async function processApprovedSale(params: {
         { onConflict: "id" }
       );
 
-      if (accErr) {
-        console.error("[Webhook] Erro no UPSERT de área de membros:", accErr.message);
-        flexibleAccessStatus = `error_area: ${accErr.message}`;
+      if (uaaErr) {
+        accessResultDesc += `[Erro Área: ${uaaErr.message}] `;
       } else {
-        flexibleAccessStatus = `area_active: ${area_id}`;
+        accessResultDesc += `[Área: ${area_id} ATIVA] `;
       }
     }
+
+    // 2.2 Se houver curso_id legado associado, garante a matrícula na tabela matriculas
+    if (curso_id) {
+      const { error: matErr } = await supabase.from("matriculas").upsert(
+        {
+          user_id: userId,
+          produto_id: externalProductId,
+          produto_nome: productName,
+          curso_id: curso_id,
+          plataforma_origem: platform,
+          status: "ativo",
+          data_liberacao: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "user_id, curso_id" }
+      );
+
+      if (matErr) {
+        accessResultDesc += `[Aviso Matrícula: ${matErr.message}] `;
+      } else {
+        accessResultDesc += `[Curso: ${curso_id} ATIVO] `;
+      }
+    }
+
+    // 3. Envio de e-mail de boas-vindas se for novo usuário
+    let emailStatus = "not_needed_existing_user";
+    if (isNewUser && tempPassword) {
+      const emailRes = await sendWelcomeEmail(
+        buyerEmail,
+        buyerName,
+        tempPassword,
+        contentTitle
+      );
+      emailStatus = emailRes.success ? "sent" : `failed: ${emailRes.error || emailRes.reason}`;
+    }
+
+    // 4. Log de Sucesso e Idempotência
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: "compra_aprovada",
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId,
+      produto_nome: productName,
+      status_processamento: "sucesso",
+      sucesso: true,
+      mensagem_detalhe: isNewUser
+        ? `Novo aluno provisionado. Acesso liberado: ${accessResultDesc}. E-mail de credenciais: ${emailStatus}.`
+        : `Aluno existente identificado. Acesso sincronizado de forma idempotente: ${accessResultDesc}.`,
+      payload_bruto: rawPayload,
+    });
+
+    return {
+      success: true,
+      httpStatus: 200,
+      message: `Acesso liberado com sucesso para ${buyerEmail}.`,
+      data: {
+        userId,
+        isNewUser,
+        emailStatus,
+        accessResultDesc,
+      },
+    };
   }
 
-  // 5. Send Welcome Email if this is a newly created student
-  let emailStatus = "not_needed_existing_user";
-  if (isNewUser && tempPassword) {
-    const emailResult = await sendWelcomeEmail(
-      cleanEmail,
-      cleanName,
-      tempPassword,
-      mappedCourseName
-    );
-    emailStatus = emailResult.success ? "sent" : `failed: ${emailResult.error || emailResult.reason}`;
+  // ==========================================================================
+  // FLUXO B: REEMBOLSO (REFUNDED) OU CHARGEBACK
+  // ==========================================================================
+  if (normalizedStatus === "REFUNDED" || normalizedStatus === "CHARGEBACK") {
+    const targetStatus = normalizedStatus === "CHARGEBACK" ? "blocked" : "revoked";
+    const targetMatStatus = normalizedStatus === "CHARGEBACK" ? "revogado" : "reembolsado";
+
+    // 1. Localiza o usuário pelo e-mail
+    const { data: usersList } = await supabase.auth.admin.listUsers();
+    const targetUser = usersList?.users.find((u) => u.email?.toLowerCase() === buyerEmail);
+
+    if (!targetUser) {
+      const noUserMsg = `Usuário ${buyerEmail} não localizado no sistema. Nenhum acesso a revogar.`;
+      await logWebhookExecution({
+        plataforma: platform,
+        evento: normalizedStatus.toLowerCase(),
+        email_comprador: buyerEmail,
+        nome_comprador: buyerName,
+        produto_id: externalProductId,
+        produto_nome: productName,
+        status_processamento: "ignorado",
+        sucesso: true,
+        mensagem_detalhe: noUserMsg,
+        payload_bruto: rawPayload,
+      });
+      return { success: true, httpStatus: 200, message: noUserMsg };
+    }
+
+    let revokeDesc = "";
+
+    // 2. Revogação em user_area_accesses
+    if (digital_product_id) {
+      const uaaId = `uaa_prod_${targetUser.id}_${digital_product_id}`.substring(0, 100);
+      const { error: revErr } = await supabase
+        .from("user_area_accesses")
+        .update({ status: targetStatus, updated_at: new Date().toISOString() })
+        .eq("id", uaaId);
+
+      revokeDesc += revErr
+        ? `[Erro revogação produto: ${revErr.message}] `
+        : `[Produto ${digital_product_id}: ${targetStatus}] `;
+    } else if (area_id) {
+      const uaaId = `uaa_area_${targetUser.id}_${area_id}`.substring(0, 100);
+      const { error: revErr } = await supabase
+        .from("user_area_accesses")
+        .update({ status: targetStatus, updated_at: new Date().toISOString() })
+        .eq("id", uaaId);
+
+      revokeDesc += revErr
+        ? `[Erro revogação área: ${revErr.message}] `
+        : `[Área ${area_id}: ${targetStatus}] `;
+    }
+
+    // 3. Revogação em matriculas (legado) buscando estritamente por user_id e produto_id
+    if (curso_id) {
+      const { error: matRevErr } = await supabase
+        .from("matriculas")
+        .update({ status: targetMatStatus, updated_at: new Date().toISOString() })
+        .eq("user_id", targetUser.id)
+        .eq("curso_id", curso_id);
+
+      revokeDesc += matRevErr
+        ? `[Erro revogação matrícula: ${matRevErr.message}] `
+        : `[Matrícula curso ${curso_id}: ${targetMatStatus}] `;
+    }
+
+    await logWebhookExecution({
+      plataforma: platform,
+      evento: normalizedStatus.toLowerCase(),
+      email_comprador: buyerEmail,
+      nome_comprador: buyerName,
+      produto_id: externalProductId,
+      produto_nome: productName,
+      status_processamento: "revogado",
+      sucesso: true,
+      mensagem_detalhe: `Acesso do aluno ${buyerEmail} atualizado para ${targetStatus} devido a ${normalizedStatus}. Detalhes: ${revokeDesc}`,
+      payload_bruto: rawPayload,
+    });
+
+    return {
+      success: true,
+      httpStatus: 200,
+      message: `Acesso revogado com sucesso para ${buyerEmail}.`,
+      data: { revokeDesc },
+    };
   }
 
-  // 6. Log success
+  // ==========================================================================
+  // FLUXO C: EVENTOS INFORMATIVOS (PENDING, CANCELLED, FAILED, UNKNOWN)
+  // ==========================================================================
+  const infoMsg = `Evento informativo recebido: status ${normalizedStatus} (ordem: ${externalOrderId || "s/n"}). Nenhuma concessão de acesso concedida.`;
   await logWebhookExecution({
-    plataforma,
-    evento: "compra_aprovada",
-    email_comprador: cleanEmail,
-    nome_comprador: cleanName,
-    produto_id: productId,
+    plataforma: platform,
+    evento: event.rawEvent,
+    email_comprador: buyerEmail,
+    nome_comprador: buyerName,
+    produto_id: externalProductId,
     produto_nome: productName,
-    status_processamento: "sucesso",
+    status_processamento: "ignorado",
     sucesso: true,
-    mensagem_detalhe: isNewUser
-      ? `Novo aluno criado. Acesso ${flexibleAccessStatus}. Matrícula #${matricula?.id || "ok"} para '${mappedCourseName}'. E-mail: ${emailStatus}.`
-      : `Aluno já existente. Acesso ${flexibleAccessStatus}. Matrícula para '${mappedCourseName}'.`,
-    payload_bruto: payload,
+    mensagem_detalhe: infoMsg,
+    payload_bruto: rawPayload,
   });
 
   return {
     success: true,
-    user_id: userId,
-    is_new_user: isNewUser,
-    course_id: mappedCourseId,
-    course_name: mappedCourseName,
-    email_status: emailStatus,
+    httpStatus: 200,
+    message: infoMsg,
   };
 }
 
-// Helper: Process Refund / Chargeback (Revoke Enrollment)
-async function processRefundOrChargeback(params: {
-  plataforma: "kiwify" | "perfectpay";
-  buyerEmail: string;
-  productId: string;
-  productName: string;
-  reason: string;
-  payload: any;
-}) {
-  const { plataforma, buyerEmail, productId, productName, reason, payload } = params;
-  const cleanEmail = buyerEmail.trim().toLowerCase();
-
-  // Find user by email
-  const { data: usersList } = await supabase.auth.admin.listUsers();
-  const user = usersList?.users.find((u) => u.email?.toLowerCase() === cleanEmail);
-
-  if (!user) {
-    await logWebhookExecution({
-      plataforma,
-      evento: reason,
-      email_comprador: cleanEmail,
-      produto_id: productId,
-      produto_nome: productName,
-      status_processamento: "ignorado",
-      sucesso: true,
-      mensagem_detalhe: `Usuário ${cleanEmail} não encontrado no banco. Nenhuma ação de cancelamento necessária.`,
-      payload_bruto: payload,
-    });
-    return { success: true, message: "User not found, nothing to revoke" };
-  }
-
-  // 1. Update matriculas status to 'reembolsado' / 'revogado' (Legacy System)
-  const { error: updateErr } = await supabase
-    .from("matriculas")
-    .update({
-      status: reason === "chargeback" ? "revogado" : "reembolsado",
-      updated_at: new Date().toISOString(),
-    })
-    .eq("user_id", user.id)
-    .or(`produto_id.eq.${productId},produto_nome.eq.${productName}`);
-
-  // 2. Find Mapping for Flexible System
-  const { data: mappingData } = await supabase
-    .from("produtos_cursos")
-    .select("area_id, digital_product_id")
-    .eq("produto_id", productId)
-    .eq("ativo", true);
-
-  let flexibleRevokeStatus = "none";
-  if (mappingData && mappingData.length === 1) {
-    const { area_id, digital_product_id } = mappingData[0];
-    const newStatus = reason === "chargeback" ? "blocked" : "revoked";
-
-    if (digital_product_id) {
-      const uaaId = `uaa_prod_${user.id}_${digital_product_id}`.substring(0, 100);
-      const { error: revErr } = await supabase
-        .from("user_area_accesses")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", uaaId);
-      
-      flexibleRevokeStatus = revErr ? `error_product: ${revErr.message}` : `product_revoked: ${digital_product_id}`;
-    } else if (area_id) {
-      const uaaId = `uaa_area_${user.id}_${area_id}`.substring(0, 100);
-      const { error: revErr } = await supabase
-        .from("user_area_accesses")
-        .update({ status: newStatus, updated_at: new Date().toISOString() })
-        .eq("id", uaaId);
-      
-      flexibleRevokeStatus = revErr ? `error_area: ${revErr.message}` : `area_revoked: ${area_id}`;
-    }
-  }
-
-  await logWebhookExecution({
-    plataforma,
-    evento: reason,
-    email_comprador: cleanEmail,
-    produto_id: productId,
-    produto_nome: productName,
-    status_processamento: "revogado",
-    sucesso: true,
-    mensagem_detalhe: `Acesso revogado (Matrícula: ${updateErr ? "erro" : "ok"}, Digital: ${flexibleRevokeStatus}) devido a ${reason}.`,
-    payload_bruto: payload,
-  });
-
-  return { success: true, message: "Access revoked successfully" };
-}
-
-// MAIN REQUEST HANDLER
+// ============================================================================
+// 6. MAIN HTTP SERVER HANDLER
+// ============================================================================
 serve(async (req: Request) => {
-  // Handle CORS preflight
+  // CORS Preflight
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
   }
 
   const url = new URL(req.url);
-  const pathname = url.pathname;
 
-  // Determine platform from route or payload
-  let platform: "kiwify" | "perfectpay" | "unknown" = "unknown";
-  if (pathname.includes("kiwify") || url.searchParams.get("platform") === "kiwify") {
-    platform = "kiwify";
-  } else if (
-    pathname.includes("perfectpay") ||
-    pathname.includes("perfect_pay") ||
-    url.searchParams.get("platform") === "perfectpay"
-  ) {
-    platform = "perfectpay";
+  // Health-check / Diagnostic GET request
+  if (req.method === "GET") {
+    return new Response(
+      JSON.stringify({
+        status: "ready",
+        version: "3.3",
+        service: "webhook-liberacao-acesso",
+        adapters: ["kiwify", "perfectpay"],
+        strictMappingRule: "produto_id EXTERNO -> produtos_cursos.produto_id -> digital_product_id -> user_area_accesses.product_id",
+        security: "Token authentication and exact mapping enforced",
+      }),
+      { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
   if (req.method !== "POST") {
@@ -542,279 +921,86 @@ serve(async (req: Request) => {
     );
   }
 
-  // Auto-detect platform from payload if route was generic
-  if (platform === "unknown") {
+  // Identificação do Adapter / Plataforma
+  const pathname = url.pathname.toLowerCase();
+  let adapter: GatewayAdapter | null = null;
+
+  if (pathname.includes("kiwify") || url.searchParams.get("platform") === "kiwify") {
+    adapter = KiwifyAdapter;
+  } else if (
+    pathname.includes("perfectpay") ||
+    pathname.includes("perfect_pay") ||
+    url.searchParams.get("platform") === "perfectpay"
+  ) {
+    adapter = PerfectPayAdapter;
+  } else {
+    // Detecção por estrutura do payload
     if (body.order_status || body.order_id || body.Customer || body.Signature) {
-      platform = "kiwify";
+      adapter = KiwifyAdapter;
     } else if (body.sale_status_enum || body.sale_code || body.customer?.doc || body.token) {
-      platform = "perfectpay";
+      adapter = PerfectPayAdapter;
     }
   }
 
-  // ==========================================
-  // 1. KIWIFY PROCESSOR & SECURITY VALIDATION
-  // ==========================================
-  if (platform === "kiwify") {
-    const signatureOrToken =
-      body.signature ||
-      body.token ||
-      body.webhook_token ||
-      url.searchParams.get("token") ||
-      req.headers.get("x-kiwify-signature") ||
-      req.headers.get("x-webhook-token");
-
-    // Security Token Validation against KIWIFY_WEBHOOK_TOKEN
-    if (KIWIFY_WEBHOOK_TOKEN && signatureOrToken !== KIWIFY_WEBHOOK_TOKEN) {
-      await logWebhookExecution({
-        plataforma: "kiwify",
-        evento: "unauthorized",
-        status_processamento: "erro",
-        sucesso: false,
-        mensagem_detalhe: "Token de segurança Kiwify inválido ou ausente.",
-        payload_bruto: body,
-      });
-
-      return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid Kiwify Webhook Token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const orderStatus = (body.order_status || body.status || "").toLowerCase();
-    const eventName = (body.event || "").toLowerCase();
-
-    // Extract Buyer Data from Kiwify Payload
-    const buyerEmail = body.Customer?.email || body.customer?.email || body.email || "";
-    const buyerName = body.Customer?.full_name || body.customer?.name || body.name || "";
-    const productId = body.Product?.product_id || body.product?.id || body.product_id || "PROD-KIWIFY";
-    const productName = body.Product?.product_name || body.product?.name || body.product_name || "Formação VIP Kiwify";
-
-    // Filter Approved Events: "paid", "approved", "compra_aprovada", "order_approved"
-    const isApproved =
-      orderStatus === "paid" ||
-      orderStatus === "approved" ||
-      eventName === "compra_aprovada" ||
-      eventName === "order_approved";
-
-    // Filter Refund / Chargeback
-    const isRefund =
-      orderStatus === "refunded" ||
-      orderStatus === "chargedback" ||
-      orderStatus === "chargeback" ||
-      eventName === "order_refunded" ||
-      eventName === "order_chargeback";
-
-    if (isApproved) {
-      try {
-        const result = await processApprovedSale({
-          plataforma: "kiwify",
-          buyerEmail,
-          buyerName,
-          productId,
-          productName,
-          payload: body,
-        });
-
-        return new Response(JSON.stringify(result), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (err: any) {
-        await logWebhookExecution({
-          plataforma: "kiwify",
-          evento: "compra_aprovada",
-          email_comprador: buyerEmail,
-          nome_comprador: buyerName,
-          produto_id: productId,
-          produto_nome: productName,
-          status_processamento: "erro",
-          sucesso: false,
-          mensagem_detalhe: `Erro ao processar liberação: ${err.message}`,
-          payload_bruto: body,
-        });
-
-        return new Response(
-          JSON.stringify({ error: "Internal processing error", message: err.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else if (isRefund) {
-      const result = await processRefundOrChargeback({
-        plataforma: "kiwify",
-        buyerEmail,
-        productId,
-        productName,
-        reason: orderStatus.includes("charge") ? "chargeback" : "reembolso",
-        payload: body,
-      });
-
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else {
-      // Other events: waiting_payment, boleto, abandoned_cart
-      await logWebhookExecution({
-        plataforma: "kiwify",
-        evento: orderStatus || eventName || "other_event",
-        email_comprador: buyerEmail,
-        nome_comprador: buyerName,
-        produto_id: productId,
-        produto_nome: productName,
-        status_processamento: "ignorado",
-        sucesso: true,
-        mensagem_detalhe: `Evento Kiwify '${orderStatus || eventName}' recebido e registrado (sem alteração de matrícula).`,
-        payload_bruto: body,
-      });
-
-      return new Response(
-        JSON.stringify({ message: "Event ignored (not approved or refund)", status: orderStatus }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+  if (!adapter) {
+    return new Response(
+      JSON.stringify({
+        error: "Unrecognized platform. Send request to /kiwify or /perfectpay, or include ?platform= parameter.",
+      }),
+      { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
-  // ===============================================
-  // 2. PERFECT PAY PROCESSOR & SECURITY VALIDATION
-  // ===============================================
-  if (platform === "perfectpay") {
-    const token =
-      body.token ||
-      body.webhook_token ||
-      body.security_token ||
-      url.searchParams.get("token") ||
-      req.headers.get("x-webhook-token");
+  // Normalização do Evento via Adapter
+  const normalizedEvent = adapter.normalize(body, req, url);
 
-    // Security Token Validation against PERFECTPAY_WEBHOOK_TOKEN
-    if (PERFECTPAY_WEBHOOK_TOKEN && token !== PERFECTPAY_WEBHOOK_TOKEN) {
-      await logWebhookExecution({
-        plataforma: "perfectpay",
-        evento: "unauthorized",
-        status_processamento: "erro",
-        sucesso: false,
-        mensagem_detalhe: "Token de autenticação PerfectPay inválido ou ausente.",
-        payload_bruto: body,
-      });
+  // Validação de Autenticação / Token
+  const authCheck = adapter.validateAuth(normalizedEvent);
+  if (!authCheck.valid) {
+    await logWebhookExecution({
+      plataforma: adapter.name,
+      evento: "unauthorized",
+      email_comprador: normalizedEvent.buyerEmail,
+      nome_comprador: normalizedEvent.buyerName,
+      produto_id: normalizedEvent.externalProductId,
+      produto_nome: normalizedEvent.productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: authCheck.reason || "Token de autenticação não autorizado.",
+      payload_bruto: body,
+    });
 
-      return new Response(
-        JSON.stringify({ error: "Unauthorized: Invalid PerfectPay Webhook Token" }),
-        { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
-
-    const saleStatusEnum = (body.sale_status_enum || body.status || "").toString().toLowerCase();
-
-    // Extract Buyer Data from PerfectPay Payload
-    const buyerEmail =
-      body.customer?.email ||
-      body.customer_email ||
-      body.client?.email ||
-      body.email ||
-      "";
-    const buyerName =
-      body.customer?.name ||
-      body.customer_name ||
-      body.client?.name ||
-      body.name ||
-      "";
-    const productId =
-      body.product?.code ||
-      body.product?.id ||
-      body.product_code ||
-      body.product_id ||
-      "PROD-PERFECTPAY";
-    const productName =
-      body.product?.name ||
-      body.product_name ||
-      "Formação VIP PerfectPay";
-
-    // PerfectPay Approved Status: "approved", 2 (approved numeric enum)
-    const isApproved =
-      saleStatusEnum === "approved" ||
-      saleStatusEnum === "2" ||
-      saleStatusEnum === "authorized" ||
-      saleStatusEnum === "complete";
-
-    // PerfectPay Refund / Chargeback Status: "refunded", "chargeback", 4 (refunded), 7 (chargeback)
-    const isRefund =
-      saleStatusEnum === "refunded" ||
-      saleStatusEnum === "chargeback" ||
-      saleStatusEnum === "4" ||
-      saleStatusEnum === "7";
-
-    if (isApproved) {
-      try {
-        const result = await processApprovedSale({
-          plataforma: "perfectpay",
-          buyerEmail,
-          buyerName,
-          productId,
-          productName,
-          payload: body,
-        });
-
-        return new Response(JSON.stringify(result), {
-          status: 200,
-          headers: { ...corsHeaders, "Content-Type": "application/json" },
-        });
-      } catch (err: any) {
-        await logWebhookExecution({
-          plataforma: "perfectpay",
-          evento: "compra_aprovada",
-          email_comprador: buyerEmail,
-          nome_comprador: buyerName,
-          produto_id: productId,
-          produto_nome: productName,
-          status_processamento: "erro",
-          sucesso: false,
-          mensagem_detalhe: `Erro ao processar liberação PerfectPay: ${err.message}`,
-          payload_bruto: body,
-        });
-
-        return new Response(
-          JSON.stringify({ error: "Internal processing error", message: err.message }),
-          { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-        );
-      }
-    } else if (isRefund) {
-      const result = await processRefundOrChargeback({
-        plataforma: "perfectpay",
-        buyerEmail,
-        productId,
-        productName,
-        reason: saleStatusEnum.includes("charge") || saleStatusEnum === "7" ? "chargeback" : "reembolso",
-        payload: body,
-      });
-
-      return new Response(JSON.stringify(result), {
-        status: 200,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    } else {
-      // Waiting payment, boleto generated, etc.
-      await logWebhookExecution({
-        plataforma: "perfectpay",
-        evento: `status_${saleStatusEnum}`,
-        email_comprador: buyerEmail,
-        nome_comprador: buyerName,
-        produto_id: productId,
-        produto_nome: productName,
-        status_processamento: "ignorado",
-        sucesso: true,
-        mensagem_detalhe: `Evento PerfectPay '${saleStatusEnum}' recebido (aguardando aprovação).`,
-        payload_bruto: body,
-      });
-
-      return new Response(
-        JSON.stringify({ message: "Event ignored (status not approved)", status: saleStatusEnum }),
-        { status: 200, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-      );
-    }
+    return new Response(
+      JSON.stringify({ error: "Unauthorized", detail: authCheck.reason }),
+      { status: 401, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
   }
 
-  // Fallback for unhandled route
-  return new Response(
-    JSON.stringify({ error: "Unrecognized platform. Send to /kiwify or /perfectpay" }),
-    { status: 400, headers: { ...corsHeaders, "Content-Type": "application/json" } }
-  );
+  // Processamento Central
+  try {
+    const result = await processEvent(normalizedEvent);
+    return new Response(JSON.stringify(result), {
+      status: result.httpStatus,
+      headers: { ...corsHeaders, "Content-Type": "application/json" },
+    });
+  } catch (err: any) {
+    console.error("[Webhook Exception]", err.message);
+    await logWebhookExecution({
+      plataforma: adapter.name,
+      evento: normalizedEvent.rawEvent,
+      email_comprador: normalizedEvent.buyerEmail,
+      nome_comprador: normalizedEvent.buyerName,
+      produto_id: normalizedEvent.externalProductId,
+      produto_nome: normalizedEvent.productName,
+      status_processamento: "erro",
+      sucesso: false,
+      mensagem_detalhe: `Erro inesperado durante processamento: ${err.message}`,
+      payload_bruto: body,
+    });
+
+    return new Response(
+      JSON.stringify({ error: "Internal Server Error", message: err.message }),
+      { status: 500, headers: { ...corsHeaders, "Content-Type": "application/json" } }
+    );
+  }
 });

@@ -22,12 +22,27 @@ export interface FileValidationResult {
 
 export const EBOOK_UPLOAD_CONFIG = {
   MIN_SIZE_BYTES: 1024, // 1 KB mínimo para evitar arquivos corrompidos ou placeholders
-  MAX_SIZE_BYTES: 50 * 1024 * 1024, // 50 MB (limite seguro padrão do Supabase Storage)
-  MAX_SIZE_FORMATTED: '50 MB',
+  MAX_SIZE_BYTES: 100 * 1024 * 1024, // 100 MB (limite robusto para e-books ilustrados de alta qualidade)
+  MAX_SIZE_FORMATTED: '100 MB',
   ALLOWED_MIME: 'application/pdf',
   ALLOWED_EXT: '.pdf',
   BUCKET_NAME: 'ebooks'
 };
+
+/**
+ * Assinaturas binárias perigosas conhecidas (executáveis, scripts, archives renomeados)
+ */
+const FORBIDDEN_MAGIC_SIGNATURES = [
+  { name: 'Windows Executable / DLL (MZ)', bytes: [0x4d, 0x5a] },
+  { name: 'Linux Executable (ELF)', bytes: [0x7f, 0x45, 0x4c, 0x46] },
+  { name: 'macOS Mach-O (32-bit)', bytes: [0xfe, 0xed, 0xfa, 0xce] },
+  { name: 'macOS Mach-O (64-bit)', bytes: [0xfe, 0xed, 0xfa, 0xcf] },
+  { name: 'macOS Mach-O / Java Class (Fat)', bytes: [0xca, 0xfe, 0xba, 0xbe] },
+  { name: 'Shell Script / Shebang', bytes: [0x23, 0x21] }, // #!
+  { name: 'ZIP / APK / Executable Archive', bytes: [0x50, 0x4b, 0x03, 0x04] }, // PK..
+  { name: 'RAR Archive', bytes: [0x52, 0x61, 0x72, 0x21] }, // Rar!
+  { name: '7-Zip Archive', bytes: [0x37, 0x7a, 0xbc, 0xaf, 0x27, 0x1c] }
+];
 
 /**
  * Gera um storage_path determinístico e sanitizado contra path traversal (../).
@@ -111,17 +126,57 @@ export async function validateEbookFile(file: File): Promise<FileValidationResul
     };
   }
 
-  // 5. Validação profunda de integridade: Magic Bytes (%PDF-)
+  // 5. Validação profunda de integridade: Anti-Malware e Magic Bytes (%PDF-)
   try {
-    const slice = file.slice(0, 5);
+    // Ler primeiros 8 KB para análise abrangente de cabeçalho e estrutura
+    const sampleSize = Math.min(file.size, 8192);
+    const slice = file.slice(0, sampleSize);
     const buffer = await slice.arrayBuffer();
     const bytes = new Uint8Array(buffer);
+
+    // 5.1 Verificar se coincide com assinaturas binárias de arquivos maliciosos ou executáveis
+    for (const sig of FORBIDDEN_MAGIC_SIGNATURES) {
+      let matches = true;
+      for (let i = 0; i < sig.bytes.length; i++) {
+        if (bytes[i] !== sig.bytes[i]) {
+          matches = false;
+          break;
+        }
+      }
+      if (matches) {
+        return {
+          valid: false,
+          error: `Binário malicioso ou não permitido detectado: ${sig.name}. O upload para o bucket 'ebooks' foi abortado por segurança.`
+        };
+      }
+    }
+
+    // 5.2 Validação estrita do cabeçalho PDF (%PDF-)
     // %PDF- corresponde aos bytes hexadecimais 0x25, 0x50, 0x44, 0x46, 0x2D
-    const header = String.fromCharCode(...bytes);
-    if (!header.startsWith('%PDF-')) {
+    const headerPrefix = String.fromCharCode(...bytes.slice(0, 5));
+    if (headerPrefix !== '%PDF-') {
       return {
         valid: false,
-        error: `Estrutura de arquivo inválida. O arquivo não inicia com a assinatura binária obrigatória de PDF (%PDF-). Arquivos disfarçados ou adulterados não são permitidos.`
+        error: `Estrutura de arquivo inválida. O arquivo não inicia com a assinatura binária obrigatória de PDF (%PDF-). Arquivos disfarçados ou adulterados são rejeitados.`
+      };
+    }
+
+    // 5.3 Validação de especificação de versão do PDF (%PDF-1.[0-7])
+    const headerText = String.fromCharCode(...bytes.slice(0, 16));
+    const versionMatch = headerText.match(/%PDF-([0-9]+\.[0-9]+)/);
+    if (!versionMatch) {
+      return {
+        valid: false,
+        error: `Versão do formato PDF não identificada no cabeçalho do arquivo.`
+      };
+    }
+
+    // 5.4 Varredura anti-payload malicioso em PDF (ex: chamadas diretas /Launch para execução de código no OS)
+    const textContent = String.fromCharCode(...bytes);
+    if (textContent.includes('/Launch') && (textContent.includes('/Action') || textContent.includes('/Win'))) {
+      return {
+        valid: false,
+        error: `Risco de segurança detectado: o arquivo PDF contém diretivas de execução de binários externos (/Launch /Action). Upload bloqueado.`
       };
     }
   } catch (err: any) {

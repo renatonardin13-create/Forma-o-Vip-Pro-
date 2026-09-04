@@ -1249,15 +1249,38 @@ class StoreManager {
 
     if (eventType === 'refund' || eventType === 'chargeback') {
       const targetUser = this.users.find(u => u.email.toLowerCase() === cleanEmail);
+      const targetStatus = eventType === 'chargeback' ? 'blocked' : 'revoked';
+      const targetMatStatus = eventType === 'chargeback' ? 'revogado' : 'reembolsado';
+
       if (targetUser) {
+        // 1. Revogar em matriculas
         this.matriculas = this.matriculas.map(m => {
-          if (m.user_id === targetUser.id) {
-            return { ...m, status: eventType === 'chargeback' ? 'revogado' : 'reembolsado' };
+          if (m.user_id === targetUser.id && (m.produto_id === productId || !productId)) {
+            return { ...m, status: targetMatStatus };
           }
           return m;
         });
         saveStorage(STORAGE_KEYS.MATRICULAS, this.matriculas);
+
+        // 2. Revogar em user_area_accesses
+        const exactMappings = this.produtosCursos.filter(m => m.ativo !== false && m.produto_id === productId);
+        if (exactMappings.length === 1) {
+          const mapping = exactMappings[0];
+          this.userAreaAccesses = this.userAreaAccesses.map(a => {
+            if (a.userId === targetUser.id) {
+              if (mapping.digital_product_id && a.productId === mapping.digital_product_id) {
+                return { ...a, status: targetStatus, updatedAt: new Date().toISOString() };
+              }
+              if (mapping.area_id && !mapping.digital_product_id && a.areaId === mapping.area_id) {
+                return { ...a, status: targetStatus, updatedAt: new Date().toISOString() };
+              }
+            }
+            return a;
+          });
+          saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+        }
       }
+
       const revokeLog: WebhookLogRecord = {
         id: `log_${Date.now()}`,
         plataforma: platform,
@@ -1268,7 +1291,7 @@ class StoreManager {
         produto_nome: productName,
         status_processamento: 'revogado',
         sucesso: true,
-        mensagem_detalhe: `Acesso do aluno ${cleanEmail} revogado com sucesso devido a ${eventType}. Matrícula inativada.`,
+        mensagem_detalhe: `Acesso do aluno ${cleanEmail} revogado com sucesso devido a ${eventType}. Matrícula e acesso digital inativados.`,
         payload_bruto: { status: eventType, customer: { email: cleanEmail, name: cleanName }, product: { id: productId, name: productName } },
         created_at: 'Agora mesmo'
       };
@@ -1276,13 +1299,75 @@ class StoreManager {
       return { success: true, message: `Acesso revogado com sucesso para ${cleanEmail}.`, log: revokeLog };
     }
 
-    // Approved purchase
-    // 1. Map to course
-    const mapping = this.produtosCursos.find(m => m.produto_id === productId || m.produto_nome.toLowerCase().includes(productName.toLowerCase()));
-    const courseId = mapping ? mapping.curso_id : 'course-negocios-digitais';
-    const courseName = mapping ? mapping.curso_nome : (productName || 'Formação VIP PRO');
+    // ==========================================
+    // COMPRA APROVADA: REGRA ABSOLUTA DE MAPEAMENTO
+    // ==========================================
+    // 1. Validação estrita do produto externo (PENDENTE ou vazio)
+    if (!productId || productId === 'PENDENTE' || productId === 'pendente' || productId.trim().length === 0) {
+      const errorLog: WebhookLogRecord = {
+        id: `log_${Date.now()}`,
+        plataforma: platform,
+        evento: 'compra_aprovada',
+        email_comprador: cleanEmail,
+        nome_comprador: cleanName,
+        produto_id: productId || 'PENDENTE',
+        produto_nome: productName,
+        status_processamento: 'erro',
+        sucesso: false,
+        mensagem_detalhe: `Produto externo pendente de configuração comercial ("${productId}"). Nenhuma liberação autorizada.`,
+        payload_bruto: { status: 'approved', platform, email: cleanEmail, productId },
+        created_at: 'Agora mesmo'
+      };
+      this.addWebhookLog(errorLog);
+      return { success: false, message: 'Produto externo pendente de configuração comercial. Liberação recusada.', log: errorLog };
+    }
 
-    // 2. Find or create user
+    // 2. Busca de Mapeamento EXATO (SEM heurística, SEM busca por nome, SEM ILIKE)
+    const exactMappings = this.produtosCursos.filter(m => m.ativo !== false && m.produto_id === productId);
+
+    if (exactMappings.length === 0) {
+      const errorLog: WebhookLogRecord = {
+        id: `log_${Date.now()}`,
+        plataforma: platform,
+        evento: 'compra_aprovada',
+        email_comprador: cleanEmail,
+        nome_comprador: cleanName,
+        produto_id: productId,
+        produto_nome: productName,
+        status_processamento: 'erro',
+        sucesso: false,
+        mensagem_detalhe: `Produto externo não mapeado: "${productId}". Liberação bloqueada por segurança.`,
+        payload_bruto: { status: 'approved', platform, email: cleanEmail, productId },
+        created_at: 'Agora mesmo'
+      };
+      this.addWebhookLog(errorLog);
+      return { success: false, message: `Produto externo não mapeado: ${productId}. Acesso não liberado.`, log: errorLog };
+    }
+
+    if (exactMappings.length > 1) {
+      const errorLog: WebhookLogRecord = {
+        id: `log_${Date.now()}`,
+        plataforma: platform,
+        evento: 'compra_aprovada',
+        email_comprador: cleanEmail,
+        nome_comprador: cleanName,
+        produto_id: productId,
+        produto_nome: productName,
+        status_processamento: 'erro',
+        sucesso: false,
+        mensagem_detalhe: `CONFLITO DE MAPEAMENTO: Múltiplos destinos (${exactMappings.length}) encontrados para o produto externo "${productId}". Liberação impedida por segurança.`,
+        payload_bruto: { status: 'approved', platform, email: cleanEmail, productId },
+        created_at: 'Agora mesmo'
+      };
+      this.addWebhookLog(errorLog);
+      return { success: false, message: `Conflito de mapeamento: múltiplos destinos ativos encontrados para ${productId}.`, log: errorLog };
+    }
+
+    const mapping = exactMappings[0];
+    const courseId = mapping.curso_id;
+    const courseName = mapping.curso_nome || mapping.produto_nome || productName || 'Conteúdo VIP';
+
+    // 3. Localizar ou criar usuário
     let user = this.users.find(u => u.email.toLowerCase() === cleanEmail);
     let userCreated = false;
     let tempPassword = '';
@@ -1312,21 +1397,76 @@ class StoreManager {
       saveStorage(STORAGE_KEYS.USERS_LIST, this.users);
     }
 
-    // 3. Register matricula
-    const newMatricula: Matricula = {
-      id: `mat_${Date.now()}`,
-      user_id: user.id,
-      produto_id: productId,
-      produto_nome: productName,
-      curso_id: courseId,
-      curso_nome: courseName,
-      plataforma_origem: platform,
-      status: 'ativo',
-      data_liberacao: new Date().toISOString()
-    };
-    this.saveMatricula(newMatricula);
+    // 4. Liberação Atômica e Idempotente no Novo Sistema (userAreaAccesses)
+    let accessDetail = '';
+    if (mapping.digital_product_id) {
+      const uaaId = `uaa_prod_${user.id}_${mapping.digital_product_id}`;
+      const existingAccessIndex = this.userAreaAccesses.findIndex(a => a.id === uaaId || (a.userId === user!.id && a.productId === mapping.digital_product_id));
+      if (existingAccessIndex >= 0) {
+        this.userAreaAccesses[existingAccessIndex].status = 'active';
+        this.userAreaAccesses[existingAccessIndex].updatedAt = new Date().toISOString();
+      } else {
+        this.userAreaAccesses.push({
+          id: uaaId,
+          userId: user.id,
+          areaId: mapping.area_id || 'area-vip',
+          productId: mapping.digital_product_id,
+          startDate: new Date().toISOString(),
+          status: 'active',
+          grantedBy: 'webhook',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+      accessDetail += `Produto Digital [${mapping.digital_product_id}] liberado. `;
+    } else if (mapping.area_id) {
+      const uaaId = `uaa_area_${user.id}_${mapping.area_id}`;
+      const existingAreaIndex = this.userAreaAccesses.findIndex(a => a.id === uaaId || (a.userId === user!.id && a.areaId === mapping.area_id && !a.productId));
+      if (existingAreaIndex >= 0) {
+        this.userAreaAccesses[existingAreaIndex].status = 'active';
+        this.userAreaAccesses[existingAreaIndex].updatedAt = new Date().toISOString();
+      } else {
+        this.userAreaAccesses.push({
+          id: uaaId,
+          userId: user.id,
+          areaId: mapping.area_id,
+          startDate: new Date().toISOString(),
+          status: 'active',
+          grantedBy: 'webhook',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        });
+      }
+      saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+      accessDetail += `Área de Membros [${mapping.area_id}] liberada. `;
+    }
 
-    // 4. Log
+    // 5. Matrícula Legada (se houver curso_id)
+    if (courseId) {
+      const existingMatriculaIndex = this.matriculas.findIndex(m => m.user_id === user!.id && m.curso_id === courseId);
+      if (existingMatriculaIndex >= 0) {
+        this.matriculas[existingMatriculaIndex].status = 'ativo';
+        this.matriculas[existingMatriculaIndex].data_liberacao = new Date().toISOString();
+        saveStorage(STORAGE_KEYS.MATRICULAS, this.matriculas);
+      } else {
+        const newMatricula: Matricula = {
+          id: `mat_${Date.now()}`,
+          user_id: user.id,
+          produto_id: productId,
+          produto_nome: productName,
+          curso_id: courseId,
+          curso_nome: courseName,
+          plataforma_origem: platform,
+          status: 'ativo',
+          data_liberacao: new Date().toISOString()
+        };
+        this.saveMatricula(newMatricula);
+      }
+      accessDetail += `Curso [${courseId}] matriculado. `;
+    }
+
+    // 6. Log de Sucesso
     const successLog: WebhookLogRecord = {
       id: `log_${Date.now()}`,
       plataforma: platform,
@@ -1338,8 +1478,8 @@ class StoreManager {
       status_processamento: 'sucesso',
       sucesso: true,
       mensagem_detalhe: userCreated
-        ? `Novo aluno criado no Supabase Auth. Senha provisória gerada (${tempPassword}). Matrícula liberada para '${courseName}'. E-mail de boas-vindas enviado via Resend.`
-        : `Aluno já existente. Matrícula adicional vinculada ao curso '${courseName}'.`,
+        ? `Novo aluno criado no Supabase Auth. Senha provisória gerada (${tempPassword}). Acesso: ${accessDetail}E-mail de boas-vindas despachado.`
+        : `Aluno já existente identificado. Acesso sincronizado de forma idempotente: ${accessDetail}`,
       payload_bruto: {
         event: 'compra_aprovada',
         platform,
@@ -1353,7 +1493,7 @@ class StoreManager {
 
     return {
       success: true,
-      message: `Acesso liberado com sucesso para ${cleanEmail} no curso ${courseName}!`,
+      message: `Acesso liberado com sucesso para ${cleanEmail}! (${accessDetail})`,
       log: successLog,
       userCreated,
       tempPassword

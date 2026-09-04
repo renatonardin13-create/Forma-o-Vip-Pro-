@@ -109,9 +109,25 @@ export const WebhooksManager: React.FC = () => {
     e.preventDefault();
     if (!newProdId || !newProdName) return;
 
+    const trimmedProdId = newProdId.trim();
+    if (trimmedProdId.toUpperCase() === 'PENDENTE') {
+      alert('O identificador "PENDENTE" não é um ID de produto externo válido. O sistema exige o código real do gateway para liberar o acesso.');
+      return;
+    }
+
+    // Validação de conflito de IDs duplicados
+    const isDuplicate = produtosCursos.some(
+      m => m.id !== editingMappingId && m.ativo !== false && m.produto_id.toLowerCase() === trimmedProdId.toLowerCase()
+    );
+    if (isDuplicate) {
+      if (!confirm(`Atenção: Já existe um mapeamento ativo com o ID externo "${trimmedProdId}". Criar mapeamentos duplicados gerará um CONFLITO e o Webhook impedirá a liberação por segurança. Deseja salvar mesmo assim?`)) {
+        return;
+      }
+    }
+
     let payload: Partial<ProdutoCursoMapping> = {
       id: editingMappingId || undefined,
-      produto_id: newProdId.trim(),
+      produto_id: trimmedProdId,
       produto_nome: newProdName.trim(),
       plataforma: newPlat,
       ativo: true,
@@ -688,6 +704,8 @@ export const WebhooksManager: React.FC = () => {
                   const isArea = !!mapping.area_id;
                   const isProduct = !!mapping.digital_product_id;
                   const isCourse = !isArea && !isProduct;
+                  const isPending = !mapping.produto_id || mapping.produto_id.toUpperCase() === 'PENDENTE';
+                  const hasConflict = produtosCursos.filter(m => m.ativo !== false && m.produto_id === mapping.produto_id).length > 1;
                   
                   return (
                     <tr key={mapping.id} className="hover:bg-[#151922]/40 transition">
@@ -703,7 +721,19 @@ export const WebhooksManager: React.FC = () => {
                         </span>
                       </td>
                       <td className="py-3.5 px-4 font-mono font-bold text-white select-all">
-                        {mapping.produto_id}
+                        <div className="flex items-center gap-2">
+                          <span>{mapping.produto_id}</span>
+                          {isPending && (
+                            <span className="text-[9px] bg-amber-500/20 text-amber-300 border border-amber-500/40 px-1.5 py-0.5 rounded font-sans font-bold">
+                              PENDENTE
+                            </span>
+                          )}
+                          {hasConflict && (
+                            <span className="text-[9px] bg-rose-500/20 text-rose-300 border border-rose-500/40 px-1.5 py-0.5 rounded font-sans font-bold" title="Múltiplos destinos ativos para o mesmo ID externo. O Webhook bloqueará a liberação por segurança.">
+                              CONFLITO
+                            </span>
+                          )}
+                        </div>
                       </td>
                       <td className="py-3.5 px-4 text-white font-medium">
                         {mapping.produto_nome}
