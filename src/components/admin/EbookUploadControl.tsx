@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   FileUp, 
   Check, 
@@ -47,6 +47,8 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
   const [fileExistsInStorage, setFileExistsInStorage] = useState(false);
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<number>(0);
+  const [checkingExisting, setCheckingExisting] = useState(false);
+  const [physicalFileConfirmed, setPhysicalFileConfirmed] = useState<boolean | null>(null);
   const [uploadSuccessData, setUploadSuccessData] = useState<{
     productTitle: string;
     fileName: string;
@@ -55,6 +57,31 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
   } | null>(null);
 
   const isAdmin = currentUserRole === 'admin';
+
+  // Verifica se o currentStoragePath existe fisicamente no bucket do Supabase
+  useEffect(() => {
+    let isMounted = true;
+    if (currentStoragePath && isSupabaseConfigured()) {
+      setCheckingExisting(true);
+      checkStorageFileExists(EBOOK_UPLOAD_CONFIG.BUCKET_NAME, currentStoragePath)
+        .then(exists => {
+          if (isMounted) {
+            setPhysicalFileConfirmed(exists);
+            setCheckingExisting(false);
+          }
+        })
+        .catch(() => {
+          if (isMounted) {
+            setPhysicalFileConfirmed(false);
+            setCheckingExisting(false);
+          }
+        });
+    } else {
+      setPhysicalFileConfirmed(null);
+      setCheckingExisting(false);
+    }
+    return () => { isMounted = false; };
+  }, [currentStoragePath]);
 
   // 1. Seleção inicial do arquivo
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -166,6 +193,7 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
 
       // Sucesso
       setUploadProgress(100);
+      setPhysicalFileConfirmed(true);
       const fileName = targetPath.split('/').pop() || 'documento.pdf';
       const pageCount = productId === 'prod-depois-dos-60-real' ? 50 : undefined;
 
@@ -219,45 +247,78 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
 
       {/* ESTADO: IDLE */}
       {uploadState === 'IDLE' && (
-        <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-[#0D0F12] p-4 rounded-xl border border-dashed border-[#222738]">
-          <div className="flex-1 space-y-1">
-            {currentStoragePath ? (
-              <>
-                <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                  <Check className="w-4 h-4" />
-                  <span>Arquivo vinculado: <code className="text-xs bg-[#151922] px-2 py-0.5 rounded border border-[#222738] text-amber-300 font-mono">{currentStoragePath}</code></span>
-                </div>
-                <p className="text-[11px] text-gray-400">
-                  Bucket: <span className="text-white font-medium">{EBOOK_UPLOAD_CONFIG.BUCKET_NAME}</span> (Privado, protegido por Signed URL)
-                </p>
-              </>
-            ) : (
-              <div className="text-gray-400 text-sm flex items-center gap-2">
-                <FileText className="w-4 h-4 text-gray-500" />
-                <span>Nenhum arquivo protegido vinculado. Selecione o PDF comercial para preparar o upload.</span>
+        <div className="flex flex-col gap-3 bg-[#0D0F12] p-4 rounded-xl border border-dashed border-[#222738]">
+          <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center justify-between">
+            <div className="flex-1 space-y-1.5">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-xs font-semibold text-gray-300">Status do PDF no Storage:</span>
+                {checkingExisting ? (
+                  <span className="inline-flex items-center gap-1.5 text-[10px] font-mono text-amber-300 bg-amber-500/10 border border-amber-500/20 px-2 py-0.5 rounded">
+                    <Loader2 className="w-3 h-3 animate-spin" /> Verificando presença física no bucket...
+                  </span>
+                ) : currentStoragePath && physicalFileConfirmed === true ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-emerald-300 bg-emerald-500/20 border border-emerald-500/40 px-2.5 py-0.5 rounded-full">
+                    <ShieldCheck className="w-3.5 h-3.5 text-emerald-400" /> PDF VALIDADO E CONFIRMADO NO STORAGE
+                  </span>
+                ) : currentStoragePath && physicalFileConfirmed === false ? (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-amber-300 bg-amber-500/20 border border-amber-500/40 px-2.5 py-0.5 rounded-full">
+                    <AlertTriangle className="w-3.5 h-3.5 text-amber-400" /> PDF AINDA NÃO ENVIADO AO STORAGE
+                  </span>
+                ) : (
+                  <span className="inline-flex items-center gap-1 text-[10px] font-mono font-bold text-gray-400 bg-gray-800 border border-gray-700 px-2.5 py-0.5 rounded-full">
+                    <FileText className="w-3.5 h-3.5 text-gray-500" /> NENHUM PDF VINCULADO
+                  </span>
+                )}
               </div>
-            )}
-            <p className="text-[10px] text-gray-500">
-              Limite máximo suportado: {EBOOK_UPLOAD_CONFIG.MAX_SIZE_FORMATTED} • Formato: PDF com assinatura binária válida.
-            </p>
-          </div>
 
-          <label className={`
-            flex items-center gap-2 px-4 py-2.5 rounded-lg text-xs font-bold transition-all select-none
-            ${!isAdmin || disabled 
-              ? 'bg-gray-800/60 text-gray-500 cursor-not-allowed border border-gray-700/50' 
-              : 'bg-amber-500/10 text-amber-400 hover:bg-amber-500/20 border border-amber-500/30 cursor-pointer active:scale-95 shadow-sm'}
-          `}>
-            <FileUp className="w-3.5 h-3.5" />
-            {currentStoragePath ? 'SUBSTITUIR PDF' : 'SELECIONAR PDF'}
-            <input 
-              type="file" 
-              className="hidden" 
-              accept=".pdf"
-              disabled={!isAdmin || disabled}
-              onChange={handleFileChange}
-            />
-          </label>
+              {currentStoragePath ? (
+                <div className="space-y-1 pt-1">
+                  <div className="text-xs text-gray-300 flex flex-wrap items-center gap-1.5">
+                    <span className="text-gray-400">Caminho Determinado:</span>
+                    <code className="text-xs bg-[#151922] px-2 py-0.5 rounded border border-[#222738] text-amber-300 font-mono">
+                      {EBOOK_UPLOAD_CONFIG.BUCKET_NAME}/{currentStoragePath}
+                    </code>
+                  </div>
+                  <p className="text-[11px] text-gray-400">
+                    {physicalFileConfirmed === true
+                      ? 'O arquivo está fisicamente gravado no bucket privado e protegido contra downloads não autorizados.'
+                      : 'O caminho do arquivo está mapeado no catálogo, mas o PDF físico ainda não existe no bucket. Faça o upload para ativá-lo.'}
+                  </p>
+                </div>
+              ) : (
+                <p className="text-xs text-gray-400 pt-1">
+                  Nenhum arquivo PDF protegido foi enviado ou vinculado a este produto. Selecione o arquivo PDF comercial para preparar o upload.
+                </p>
+              )}
+
+              <p className="text-[10px] text-gray-500 pt-1">
+                Bucket: <span className="text-gray-300 font-medium">{EBOOK_UPLOAD_CONFIG.BUCKET_NAME}</span> (Privado, protegido por Signed URL) • Limite: {EBOOK_UPLOAD_CONFIG.MAX_SIZE_FORMATTED} • Formato obrigatório: PDF com assinatura binária válida.
+              </p>
+            </div>
+
+            <label className={`
+              flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl text-xs font-bold transition-all select-none whitespace-nowrap shrink-0
+              ${!isAdmin || disabled 
+                ? 'bg-gray-800/60 text-gray-500 cursor-not-allowed border border-gray-700/50' 
+                : currentStoragePath && physicalFileConfirmed === false
+                  ? 'bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-400 hover:to-amber-500 text-black border border-amber-400 shadow-md shadow-amber-500/20 cursor-pointer active:scale-95 animate-pulse'
+                  : 'bg-amber-500/15 hover:bg-amber-500/25 text-amber-300 border border-amber-500/40 hover:border-amber-400 cursor-pointer active:scale-95 shadow-sm'}
+            `}>
+              <FileUp className="w-4 h-4" />
+              {currentStoragePath && physicalFileConfirmed === true 
+                ? 'SUBSTITUIR PDF EXISTENTE' 
+                : currentStoragePath && physicalFileConfirmed === false 
+                  ? 'ENVIAR ARQUIVO PDF (UPLOAD)' 
+                  : 'SELECIONAR ARQUIVO PDF'}
+              <input 
+                type="file" 
+                className="hidden" 
+                accept=".pdf"
+                disabled={!isAdmin || disabled}
+                onChange={handleFileChange}
+              />
+            </label>
+          </div>
         </div>
       )}
 

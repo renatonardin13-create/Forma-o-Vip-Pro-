@@ -30,7 +30,8 @@ import {
   Activity,
   Webhook,
   CheckCheck,
-  ShieldCheck
+  ShieldCheck,
+  AlertTriangle
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
@@ -133,7 +134,8 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
     // Entrega / Storage
     let deliveryValid = false;
     let deliveryNote = '';
-    if (prod.type === 'ebook') {
+    const isEbookType = prod.type?.toLowerCase() === 'ebook' || prod.id === 'prod-depois-dos-60-real';
+    if (isEbookType) {
       deliveryValid = Boolean(prod.storagePath && prod.storagePath.trim().length > 0);
       deliveryNote = deliveryValid 
         ? `Arquivo protegido no bucket Supabase: "${prod.storagePath}"`
@@ -191,8 +193,28 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
   };
 
   const handleEdit = (product: DigitalProduct) => {
-    setEditingProduct({ ...product });
+    setEditingProduct({
+      ...product,
+      type: (product.type?.toLowerCase() as DigitalProductType) || 'curso'
+    });
     setShowModal(true);
+  };
+
+  const handleManagePdf = (product: DigitalProduct) => {
+    const isDepoisDos60 = product.id === 'prod-depois-dos-60-real';
+    const normalizedProduct: DigitalProduct = {
+      ...product,
+      type: 'ebook',
+      storagePath: product.storagePath || (isDepoisDos60 ? 'prod-depois-dos-60-real/depois-dos-60-50-cuidados.pdf' : product.storagePath)
+    };
+    setEditingProduct(normalizedProduct);
+    setShowModal(true);
+    setTimeout(() => {
+      const el = document.getElementById('admin-ebook-config-section');
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }, 200);
   };
 
   const handleDuplicate = (product: DigitalProduct) => {
@@ -219,14 +241,19 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
       return;
     }
 
-    saveDigitalProduct(editingProduct as any);
+    const payload = {
+      ...editingProduct,
+      type: (editingProduct.type?.toLowerCase() as DigitalProductType) || 'curso'
+    };
+
+    saveDigitalProduct(payload as any);
     setShowModal(false);
     setEditingProduct(null);
     showToast('Produto salvo com sucesso no catálogo!');
   };
 
   const getTypeIcon = (type: DigitalProductType) => {
-    switch (type) {
+    switch (type?.toLowerCase()) {
       case 'curso': return <PlaySquare className="w-4 h-4 text-emerald-400" />;
       case 'ebook': return <BookOpen className="w-4 h-4 text-amber-400" />;
       case 'aplicativo': return <Smartphone className="w-4 h-4 text-blue-400" />;
@@ -239,7 +266,7 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
 
   const filteredProducts = digitalProducts.filter(prod => {
     const matchesArea = selectedAreaFilter === 'all' || prod.areaId === selectedAreaFilter;
-    const matchesType = selectedTypeFilter === 'all' || prod.type === selectedTypeFilter;
+    const matchesType = selectedTypeFilter === 'all' || prod.type?.toLowerCase() === selectedTypeFilter.toLowerCase();
     const matchesSearch = 
       prod.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
       prod.shortDescription.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -419,10 +446,24 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                     </div>
                   )}
 
-                  {prod.type === 'ebook' && prod.ebook && (
-                    <div className="flex items-center justify-between">
-                      <span className="text-gray-400">Páginas: {prod.ebook.pageCount || '—'}</span>
-                      <span className="font-semibold text-amber-400">{prod.ebook.fileFormat?.toUpperCase() || 'PDF'}</span>
+                  {(prod.type?.toLowerCase() === 'ebook' || prod.id === 'prod-depois-dos-60-real') && (
+                    <div className="space-y-1.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-gray-400">Páginas: {prod.ebook?.pageCount || 50}</span>
+                        <span className="font-semibold text-amber-400">{prod.ebook?.fileFormat?.toUpperCase() || 'PDF'}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-[11px] pt-1.5 border-t border-[#222738]/60">
+                        <span className="text-gray-400">Storage Privado:</span>
+                        {prod.storagePath ? (
+                          <span className="font-mono text-[10px] text-emerald-400 bg-emerald-500/10 border border-emerald-500/30 px-1.5 py-0.5 rounded truncate max-w-[150px]" title={prod.storagePath}>
+                            {prod.storagePath.split('/').pop()}
+                          </span>
+                        ) : (
+                          <span className="font-mono text-[10px] text-amber-400 bg-amber-500/10 border border-amber-500/30 px-1.5 py-0.5 rounded">
+                            PDF NÃO ENVIADO
+                          </span>
+                        )}
+                      </div>
                     </div>
                   )}
 
@@ -495,6 +536,31 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* AÇÃO DESTACADA: GERENCIAR PDF (Fase 3.10 - Exclusivo Administrador) */}
+                {currentUser?.role === 'admin' && (prod.type?.toLowerCase() === 'ebook' || prod.id === 'prod-depois-dos-60-real') && (
+                  <div className="pt-2 border-t border-[#1D2230]">
+                    <button
+                      id={`btn-manage-pdf-${prod.id}`}
+                      type="button"
+                      onClick={() => handleManagePdf(prod)}
+                      className="w-full py-2.5 px-3 rounded-xl bg-gradient-to-r from-amber-500/20 via-amber-500/30 to-amber-600/20 hover:from-amber-500/35 hover:to-amber-600/35 text-amber-300 hover:text-amber-100 border border-amber-500/50 hover:border-amber-400 font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-amber-500/10 group/pdf active:scale-[0.98]"
+                      title="Abrir configurações e gerenciar upload seguro do PDF no Storage"
+                    >
+                      <FileUp className="w-4 h-4 text-amber-400 group-hover/pdf:scale-110 transition-transform" />
+                      <span>📄 GERENCIAR PDF</span>
+                      {prod.storagePath ? (
+                        <span className="text-[10px] bg-emerald-500/20 text-emerald-300 px-2 py-0.5 rounded-full border border-emerald-500/30 font-mono">
+                          VINCULADO
+                        </span>
+                      ) : (
+                        <span className="text-[10px] bg-amber-500/30 text-amber-200 px-2 py-0.5 rounded-full border border-amber-400/40 font-mono animate-pulse">
+                          ENVIAR
+                        </span>
+                      )}
+                    </button>
+                  </div>
+                )}
 
                 {/* Actions Bottom Bar */}
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#1D2230]">
@@ -930,27 +996,71 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
               )}
 
               {/* 2. E-BOOK */}
-              {editingProduct.type === 'ebook' && (
-                <div className="p-4 bg-[#151922] rounded-xl border border-[#222738] space-y-4">
-                  <h4 className="text-xs font-bold text-amber-400 uppercase tracking-wider flex items-center gap-2">
-                    <BookOpen className="w-4 h-4" />
-                    Configuração do E-book
-                  </h4>
+              {(editingProduct.type?.toLowerCase() === 'ebook' || editingProduct.id === 'prod-depois-dos-60-real') && (
+                <div 
+                  id="admin-ebook-config-section" 
+                  className="p-5 bg-[#151922] rounded-2xl border-2 border-amber-500/40 shadow-xl shadow-amber-500/5 space-y-5 scroll-mt-6"
+                >
+                  <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 pb-3 border-b border-[#222738]">
+                    <div className="flex items-center gap-2.5">
+                      <div className="p-2 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-400">
+                        <BookOpen className="w-5 h-5" />
+                      </div>
+                      <div>
+                        <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                          Configuração do E-book & Arquivo Protegido
+                          <span className="text-[10px] uppercase font-mono tracking-wider px-2 py-0.5 rounded bg-amber-500/10 text-amber-400 border border-amber-500/20">
+                            Fase 3.10
+                          </span>
+                        </h4>
+                        <p className="text-xs text-gray-400">
+                          Gerencie a entrega protegida via Supabase Storage Privado.
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      {editingProduct.storagePath ? (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-emerald-500/20 text-emerald-300 border border-emerald-500/40">
+                          <Check className="w-3.5 h-3.5" /> PDF VINCULADO COM SUCESSO
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 animate-pulse">
+                          <AlertTriangle className="w-3.5 h-3.5" /> PDF AINDA NÃO ENVIADO
+                        </span>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Arquitetura de Segurança Aviso */}
+                  <div className="p-3.5 bg-amber-500/5 border border-amber-500/20 rounded-xl flex items-start gap-3 text-xs text-amber-200/90">
+                    <ShieldCheck className="w-4 h-4 text-amber-400 shrink-0 mt-0.5" />
+                    <div className="space-y-1">
+                      <span className="font-bold text-amber-300">Arquitetura de Segurança Ativa:</span>
+                      <p className="leading-relaxed">
+                        O PDF comercial é mantido no bucket privado <code className="font-mono bg-[#0D0F12] px-1.5 py-0.5 rounded text-amber-300 border border-amber-500/30">ebooks</code> do Supabase. O leitor gera URLs assinadas temporárias exclusivamente para alunos com acesso liberado.
+                      </p>
+                    </div>
+                  </div>
+
                   <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                     <div className="sm:col-span-2">
                       <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                        URL do Arquivo PDF do Livro
+                        Caminho no Storage (Privado Supabase)
                       </label>
                       <input
-                        type="url"
-                        placeholder="https://.../meu-ebook.pdf"
-                        value={editingProduct.ebook?.pdfUrl || ''}
+                        type="text"
+                        placeholder="prod-depois-dos-60-real/depois-dos-60-50-cuidados.pdf"
+                        value={editingProduct.storagePath || ''}
                         onChange={e => setEditingProduct(prev => ({
                           ...prev!,
-                          ebook: { ...(prev!.ebook || {}), pdfUrl: e.target.value }
+                          storagePath: e.target.value
                         }))}
-                        className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                        className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm font-mono text-amber-300 focus:outline-none focus:border-[#D4AF37]"
                       />
+                      <p className="text-[11px] text-gray-500 mt-1">
+                        * Padrão oficial: <code className="text-gray-400 font-mono">prod-depois-dos-60-real/depois-dos-60-50-cuidados.pdf</code>
+                      </p>
                     </div>
 
                     <div>
@@ -959,8 +1069,8 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                       </label>
                       <input
                         type="number"
-                        placeholder="184"
-                        value={editingProduct.ebook?.pageCount || ''}
+                        placeholder="50"
+                        value={editingProduct.ebook?.pageCount || (editingProduct.id === 'prod-depois-dos-60-real' ? 50 : '')}
                         onChange={e => setEditingProduct(prev => ({
                           ...prev!,
                           ebook: { ...(prev!.ebook || {}), pageCount: Number(e.target.value) }
@@ -970,12 +1080,17 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Upload Protegido (Fase 3.2D - Preparação Definitiva) */}
-                  <div className="pt-2 border-t border-[#222738]/50">
-                    <label className="block text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
-                      <FileUp className="w-3 h-3 text-amber-500" />
-                      Arquivo Protegido (Supabase Storage Privado)
-                    </label>
+                  {/* Controle de Upload Físico ao Storage */}
+                  <div className="pt-3 border-t border-[#222738]">
+                    <div className="flex items-center justify-between mb-3">
+                      <label className="text-xs font-bold text-gray-300 uppercase tracking-wider flex items-center gap-2">
+                        <FileUp className="w-3.5 h-3.5 text-amber-400" />
+                        Gerenciador de Upload do PDF Físico
+                      </label>
+                      <span className="text-[10px] text-gray-400 font-mono">
+                        Bucket: ebooks (Privado)
+                      </span>
+                    </div>
                     
                     <EbookUploadControl 
                       productId={editingProduct.id || 'prod-depois-dos-60-real'}
