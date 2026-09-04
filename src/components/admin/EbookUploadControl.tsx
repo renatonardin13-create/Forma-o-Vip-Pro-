@@ -126,34 +126,14 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
     setUploadProgress(0);
 
     try {
-      // Diagnóstico Forense: Validar sessão antes do upload (Fase 3.5)
+      // Diagnóstico Forense: Validar sessão antes do upload
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
       
-      // Se não houver sessão JWT válida ou der erro, ativamos o modo "Local In-Memory"
-      // Isso resolve a demora ("demorando demais") e o erro de RLS, permitindo
-      // que o administrador suba "o próprio arquivo" e teste o leitor imediatamente.
       if (sessionError || !session || !isSupabaseConfigured()) {
-        setUploadProgress(100);
-        
-        // Criamos um ObjectURL local com o próprio arquivo do usuário
-        const objectUrl = URL.createObjectURL(selectedFile);
-        const pageCount = productId === 'prod-depois-dos-60-real' ? 50 : undefined;
-        
-        console.warn('[EbookUpload] Modo Local Ativado: O arquivo foi carregado na memória do navegador pois não há uma sessão autenticada com o Supabase. O Leitor de PDF usará este arquivo.');
-        
-        setUploadSuccessData({
-          productTitle: 'E-book Atualizado (Modo Local)',
-          fileName: selectedFile.name,
-          fileSize: (selectedFile.size / (1024 * 1024)).toFixed(2) + ' MB'
-        });
-        setUploadState('SUCCESS');
-        
-        // Retornamos o objectUrl como se fosse o storagePath. O Leitor vai reconhecer 'blob:'
-        onStoragePathUpdated(objectUrl, pageCount);
-        return;
+        throw new Error('Não há sessão autenticada ou o Supabase não está configurado. O upload foi bloqueado para garantir armazenamento físico definitivo.');
       }
       
-      // Fluxo Oficial: Upload para o Supabase Storage (se tiver sessão real)
+      // Fluxo Oficial: Upload para o Supabase Storage
       const { error: uploadError } = await supabase.storage
         .from(EBOOK_UPLOAD_CONFIG.BUCKET_NAME)
         .upload(targetPath, selectedFile, {
@@ -168,16 +148,16 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
         });
 
       if (uploadError) {
-        // Diagnóstico Forense (Obrigatório pela Fase 3.5)
-        const forensicErrorMsg = `[Supabase Storage Diagnostic] Ocorreu uma falha física de upload no Supabase Storage.
-Status/Type: ${uploadError.name}
-Mensagem Técnica Original do Supabase: "${uploadError.message}"
-Operação: UPLOAD_INSERT (upsert: true)
-Bucket: ${EBOOK_UPLOAD_CONFIG.BUCKET_NAME}
-Path: ${targetPath}
-Isso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucket) ou, MAIS PROVÁVEL, quando as Políticas de Segurança (RLS) rejeitam a gravação (ex: "new row violates row-level security policy for table objects"). Verifique se seu usuário tem privilégio real de 'admin' na tabela public.perfis no Supabase.`;
+        // Diagnóstico Forense
+        const forensicErrorMsg = `[Supabase Storage Diagnostic] Ocorreu uma falha física de upload no Supabase Storage.\nStatus/Type: ${uploadError.name}\nMensagem Técnica Original do Supabase: "${uploadError.message}"\nOperação: UPLOAD_INSERT (upsert: true)\nBucket: ${EBOOK_UPLOAD_CONFIG.BUCKET_NAME}\nPath: ${targetPath}\nIsso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucket) ou, MAIS PROVÁVEL, quando as Políticas de Segurança (RLS) rejeitam a gravação (ex: "new row violates row-level security policy for table objects"). Verifique se seu usuário tem privilégio real de 'admin' na tabela public.perfis no Supabase.`;
         console.error(forensicErrorMsg);
         throw new Error(`Erro do Supabase: ${uploadError.message}. Consulte o console para diagnóstico completo.`);
+      }
+
+      // 10. APÓS UPLOAD - Verificar se o objeto existe fisicamente
+      const exists = await checkStorageFileExists(EBOOK_UPLOAD_CONFIG.BUCKET_NAME, targetPath);
+      if (!exists) {
+        throw new Error('Falha grave: Upload foi relatado como concluído, mas o arquivo físico não foi encontrado no bucket.');
       }
 
       // Sucesso
