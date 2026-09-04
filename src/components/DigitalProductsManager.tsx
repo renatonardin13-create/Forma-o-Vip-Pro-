@@ -28,6 +28,7 @@ import {
 import { useStore } from '../services/store';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
 import { DigitalProduct, DigitalProductType, MemberArea } from '../types';
+import { EbookUploadControl } from './admin/EbookUploadControl';
 
 interface DigitalProductsManagerProps {
   initialAreaId?: string;
@@ -41,6 +42,7 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
   onSelectCourse
 }) => {
   const { 
+    currentUser,
     digitalProducts, 
     memberAreas, 
     courses, 
@@ -56,7 +58,6 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
   const [editingProduct, setEditingProduct] = useState<Partial<DigitalProduct> | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
-  const [uploading, setUploading] = useState(false);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -90,70 +91,6 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
   const handleEdit = (product: DigitalProduct) => {
     setEditingProduct({ ...product });
     setShowModal(true);
-  };
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !editingProduct) return;
-
-    if (file.type !== 'application/pdf') {
-      alert('Por favor, selecione um arquivo PDF.');
-      return;
-    }
-
-    if (!isSupabaseConfigured()) {
-      alert('Supabase não está configurado corretamente.');
-      return;
-    }
-
-    setUploading(true);
-    try {
-      // FASE 3.2C: Caminho obrigatório e padronizado para o PDF comercial real
-      const isDepoisDos60 = editingProduct.id === 'prod-depois-dos-60-real' ||
-        file.name.toLowerCase().includes('depois') ||
-        file.name.toLowerCase().includes('cuidado') ||
-        file.name.toLowerCase().includes('idoso') ||
-        file.name.toLowerCase().includes('terceira idade');
-
-      const fileName = isDepoisDos60
-        ? 'depois-dos-60-50-cuidados.pdf'
-        : file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
-      
-      const productId = isDepoisDos60 ? 'prod-depois-dos-60-real' : editingProduct.id;
-      const filePath = `${productId}/${fileName}`;
-
-      const { error: uploadError } = await supabase.storage
-        .from('ebooks')
-        .upload(filePath, file, { 
-          upsert: true,
-          cacheControl: '3600'
-        });
-
-      if (uploadError) throw uploadError;
-
-      const updatedProduct = {
-        ...editingProduct,
-        storagePath: filePath,
-        ebook: {
-          ...(editingProduct.ebook || {}),
-          pageCount: 50
-        }
-      };
-
-      setEditingProduct(updatedProduct);
-      
-      // Auto-persiste no catálogo para evitar perda do path
-      if (editingProduct.title && editingProduct.areaId && editingProduct.type) {
-        saveDigitalProduct(updatedProduct as any);
-      }
-
-      showToast('PDF comercial real enviado e vinculado com sucesso ao Storage Privado!');
-    } catch (err: any) {
-      console.error('Erro no upload:', err.message);
-      alert('Falha ao enviar arquivo: ' + err.message);
-    } finally {
-      setUploading(false);
-    }
   };
 
   const handleDuplicate = (product: DigitalProduct) => {
@@ -801,55 +738,34 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                     </div>
                   </div>
 
-                  {/* Upload Protegido (Fase 2.8B) */}
+                  {/* Upload Protegido (Fase 3.2D - Preparação Definitiva) */}
                   <div className="pt-2 border-t border-[#222738]/50">
                     <label className="block text-xs font-bold text-gray-400 uppercase mb-3 flex items-center gap-2">
                       <FileUp className="w-3 h-3 text-amber-500" />
-                      Arquivo Protegido (Supabase Storage)
+                      Arquivo Protegido (Supabase Storage Privado)
                     </label>
                     
-                    <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-[#0D0F12] p-4 rounded-xl border border-dashed border-[#222738]">
-                      <div className="flex-1 space-y-1">
-                        {editingProduct.storagePath ? (
-                          <>
-                            <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
-                              <Check className="w-4 h-4" />
-                              <span>Caminho no Storage: <code className="text-xs bg-[#151922] px-2 py-0.5 rounded border border-[#222738] text-amber-300 font-mono">{editingProduct.storagePath}</code></span>
-                            </div>
-                            <p className="text-[11px] text-gray-400">Bucket: <span className="text-white font-medium">ebooks</span> (Privado, Signed URL obrigatória)</p>
-                          </>
-                        ) : (
-                          <div className="text-gray-500 text-sm">
-                            Nenhum arquivo protegido vinculado. Faça upload do PDF comercial real para garantir a segurança.
-                          </div>
-                        )}
-                        <p className="text-[10px] text-gray-500">O arquivo é armazenado em bucket privado e servido exclusivamente sob autorização via Signed URL.</p>
-                      </div>
-
-                      <label className={`
-                        flex items-center gap-2 px-4 py-2 rounded-lg text-xs font-bold cursor-pointer transition-all
-                        ${uploading ? 'bg-gray-800 text-gray-500' : 'bg-amber-500/10 text-amber-500 hover:bg-amber-500/20'}
-                      `}>
-                        {uploading ? (
-                          <>
-                            <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                            ENVIANDO...
-                          </>
-                        ) : (
-                          <>
-                            <FileUp className="w-3.5 h-3.5" />
-                            {editingProduct.storagePath ? 'SUBSTITUIR PDF' : 'FAZER UPLOAD PDF'}
-                          </>
-                        )}
-                        <input 
-                          type="file" 
-                          className="hidden" 
-                          accept=".pdf"
-                          disabled={uploading}
-                          onChange={handleFileUpload}
-                        />
-                      </label>
-                    </div>
+                    <EbookUploadControl 
+                      productId={editingProduct.id || 'prod-depois-dos-60-real'}
+                      productTitle={editingProduct.title || 'Depois dos 60: 50 cuidados que todo idoso e sua família precisam conhecer'}
+                      currentStoragePath={editingProduct.storagePath}
+                      currentUserRole={currentUser?.role}
+                      onStoragePathUpdated={(newStoragePath, pageCount) => {
+                        const updatedProduct = {
+                          ...editingProduct,
+                          storagePath: newStoragePath,
+                          ebook: {
+                            ...(editingProduct.ebook || {}),
+                            pageCount: pageCount || editingProduct.ebook?.pageCount || 50
+                          }
+                        };
+                        setEditingProduct(updatedProduct);
+                        if (editingProduct.title && editingProduct.areaId && editingProduct.type) {
+                          saveDigitalProduct(updatedProduct as any);
+                        }
+                        showToast('Caminho no Storage atualizado com sucesso!');
+                      }}
+                    />
                   </div>
                 </div>
               )}
