@@ -336,6 +336,8 @@ export interface DigitalProduct {
   externalProductId?: string;
   platform?: 'kiwify' | 'perfectpay' | 'todas';
   autoLiberarAposCompra?: boolean;
+  commercialStatus?: 'PENDENTE' | 'CONFIGURADO' | 'TESTE' | 'ATIVO' | 'PAUSADO' | 'ERRO';
+  webhookActive?: boolean;
 }
 
 export interface SalesTransaction {

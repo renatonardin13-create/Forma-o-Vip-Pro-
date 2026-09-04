@@ -1287,6 +1287,8 @@ export const INITIAL_DIGITAL_PRODUCTS: DigitalProduct[] = [
     salesPageUrl: 'https://depois-dos-60.vercel.app/',
     externalProductId: 'PENDENTE',
     checkoutUrl: '',
+    commercialStatus: 'PENDENTE',
+    webhookActive: false,
     ebook: {
       pageCount: 50,
       fileFormat: 'PDF',

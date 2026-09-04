@@ -1,5 +1,5 @@
-import React from 'react';
-import { X, Lock, CheckCircle2, ExternalLink, Sparkles, ShieldCheck } from 'lucide-react';
+import React, { useState } from 'react';
+import { X, Lock, CheckCircle2, ExternalLink, Sparkles, ShieldCheck, AlertCircle, ShoppingCart } from 'lucide-react';
 import { DigitalProduct } from '../types';
 
 interface ProductSalesModalProps {
@@ -8,19 +8,36 @@ interface ProductSalesModalProps {
 }
 
 export const ProductSalesModal: React.FC<ProductSalesModalProps> = ({ product, onClose }) => {
-  const hasCheckoutUrl = Boolean(product.checkoutUrl && product.checkoutUrl.trim().length > 0);
-  const hasSalesPageUrl = Boolean(product.salesPageUrl && product.salesPageUrl.trim().length > 0);
+  const [showCheckoutWarning, setShowCheckoutWarning] = useState(false);
 
-  const handleAction = () => {
-    if (hasCheckoutUrl) {
+  const isValidUrl = (url?: string): boolean => {
+    if (!url) return false;
+    const trimmed = url.trim();
+    if (trimmed.length === 0 || trimmed === '#' || trimmed === 'PENDENTE' || trimmed.includes('example.com')) {
+      return false;
+    }
+    return trimmed.startsWith('http://') || trimmed.startsWith('https://');
+  };
+
+  const hasCheckoutUrl = isValidUrl(product.checkoutUrl);
+  const hasSalesPageUrl = isValidUrl(product.salesPageUrl);
+
+  const handleCheckoutClick = () => {
+    if (hasCheckoutUrl && product.checkoutUrl) {
       window.open(product.checkoutUrl, '_blank', 'noopener,noreferrer');
-    } else if (hasSalesPageUrl) {
+    } else {
+      setShowCheckoutWarning(true);
+    }
+  };
+
+  const handleSalesPageClick = () => {
+    if (hasSalesPageUrl && product.salesPageUrl) {
       window.open(product.salesPageUrl, '_blank', 'noopener,noreferrer');
     }
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+    <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
       <div className="bg-[#0D0F12] border border-[#D4AF37]/30 rounded-3xl max-w-xl w-full overflow-hidden shadow-2xl relative text-white">
         {/* Close Button */}
         <button
@@ -85,6 +102,20 @@ export const ProductSalesModal: React.FC<ProductSalesModalProps> = ({ product, o
             </ul>
           </div>
 
+          {/* Warning Banner when checkout is not yet configured */}
+          {(!hasCheckoutUrl || showCheckoutWarning) && (
+            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl space-y-1 text-amber-200">
+              <div className="flex items-center gap-2 font-bold text-xs text-amber-400">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>Checkout ainda não configurado.</span>
+              </div>
+              <p className="text-[11px] text-amber-300/80 pl-6 leading-relaxed">
+                Integração de checkout em preparação para este produto.
+                {hasSalesPageUrl && ' Você pode acessar a página de vendas oficial para conhecer todos os detalhes.'}
+              </p>
+            </div>
+          )}
+
           {/* Price & CTA Footer */}
           <div className="flex flex-col sm:flex-row items-center justify-between gap-4 pt-4 border-t border-[#1D2230]">
             <div>
@@ -94,33 +125,37 @@ export const ProductSalesModal: React.FC<ProductSalesModalProps> = ({ product, o
               </div>
             </div>
 
-            {hasCheckoutUrl ? (
-              <button
-                onClick={handleAction}
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] hover:from-[#e5bc3b] hover:to-[#ffd556] text-black font-black text-sm tracking-wide shadow-xl shadow-[#D4AF37]/20 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02]"
-              >
-                <span>IR PARA O CHECKOUT OFICIAL</span>
-                <ExternalLink className="w-4 h-4" />
-              </button>
-            ) : hasSalesPageUrl ? (
-              <div className="flex flex-col items-center sm:items-end gap-1 w-full sm:w-auto">
+            <div className="flex flex-col sm:flex-row items-center gap-3 w-full sm:w-auto">
+              {hasSalesPageUrl && (
                 <button
-                  onClick={handleAction}
-                  className="w-full sm:w-auto px-8 py-3.5 rounded-2xl bg-[#E5A83B]/10 hover:bg-[#E5A83B]/20 border border-[#E5A83B]/40 text-[#E5A83B] font-extrabold text-xs tracking-wide flex items-center justify-center gap-2 transition-all"
+                  onClick={handleSalesPageClick}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-[#E5A83B]/10 hover:bg-[#E5A83B]/20 border border-[#E5A83B]/40 text-[#E5A83B] font-extrabold text-xs tracking-wide flex items-center justify-center gap-2 transition-all shadow-md"
                 >
                   <span>ACESSAR PÁGINA DE VENDAS</span>
                   <ExternalLink className="w-3.5 h-3.5" />
                 </button>
-                <span className="text-[10px] text-gray-400 font-mono">Checkout direto em preparação</span>
-              </div>
-            ) : (
-              <button
-                disabled
-                className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gray-800 text-gray-400 font-bold text-xs tracking-wide border border-gray-700/50 cursor-not-allowed select-none"
-              >
-                Oferta em preparação
-              </button>
-            )}
+              )}
+
+              {hasCheckoutUrl ? (
+                <button
+                  onClick={handleCheckoutClick}
+                  className="w-full sm:w-auto px-8 py-4 rounded-2xl bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] hover:from-[#e5bc3b] hover:to-[#ffd556] text-black font-black text-sm tracking-wide shadow-xl shadow-[#D4AF37]/20 flex items-center justify-center gap-2 transition-all transform hover:scale-[1.02]"
+                >
+                  <ShoppingCart className="w-4 h-4" />
+                  <span>IR PARA O CHECKOUT OFICIAL</span>
+                  <ExternalLink className="w-4 h-4" />
+                </button>
+              ) : (
+                <button
+                  onClick={handleCheckoutClick}
+                  className="w-full sm:w-auto px-6 py-3.5 rounded-2xl bg-gray-800/80 hover:bg-gray-800 text-gray-300 font-bold text-xs tracking-wide border border-gray-700/50 flex items-center justify-center gap-2 transition-all"
+                  title="Checkout direto ainda não configurado para este produto"
+                >
+                  <Lock className="w-3.5 h-3.5 text-amber-400" />
+                  <span>Checkout em preparação</span>
+                </button>
+              )}
+            </div>
           </div>
 
           <div className="text-center">

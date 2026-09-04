@@ -23,7 +23,14 @@ import {
   Sparkles,
   Link as LinkIcon,
   FileUp,
-  Loader2
+  Loader2,
+  AlertCircle,
+  CheckCircle2,
+  ShieldAlert,
+  Activity,
+  Webhook,
+  CheckCheck,
+  ShieldCheck
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { supabase, isSupabaseConfigured } from '../services/supabase';
@@ -46,6 +53,7 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
     digitalProducts, 
     memberAreas, 
     courses, 
+    produtosCursos,
     saveDigitalProduct, 
     deleteDigitalProduct, 
     toggleDigitalProductStatus 
@@ -56,12 +64,106 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
   const [searchTerm, setSearchTerm] = useState('');
   const [showModal, setShowModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Partial<DigitalProduct> | null>(null);
+  const [verifyingProduct, setVerifyingProduct] = useState<DigitalProduct | null>(null);
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const getCommercialBadge = (status?: string, extId?: string) => {
+    const current = status || (extId === 'PENDENTE' || !extId ? 'PENDENTE' : 'CONFIGURADO');
+    switch (current) {
+      case 'ATIVO':
+        return { label: 'ATIVO', color: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/40' };
+      case 'CONFIGURADO':
+        return { label: 'CONFIGURADO', color: 'bg-blue-500/20 text-blue-400 border-blue-500/40' };
+      case 'TESTE':
+        return { label: 'TESTE', color: 'bg-purple-500/20 text-purple-400 border-purple-500/40' };
+      case 'PAUSADO':
+        return { label: 'PAUSADO', color: 'bg-gray-500/20 text-gray-400 border-gray-500/40' };
+      case 'ERRO':
+        return { label: 'ERRO', color: 'bg-rose-500/20 text-rose-400 border-rose-500/40' };
+      case 'PENDENTE':
+      default:
+        return { label: 'PENDENTE', color: 'bg-amber-500/20 text-amber-400 border-amber-500/40' };
+    }
+  };
+
+  const getIntegrationAudit = (prod?: Partial<DigitalProduct> | null) => {
+    if (!prod) return null;
+    const extId = prod.externalProductId?.trim() || '';
+    const extIdIsPendente = extId.toUpperCase() === 'PENDENTE' || extId.length === 0;
+    const externalIdValid = !extIdIsPendente;
+    const externalIdNote = extIdIsPendente 
+      ? 'Configuração comercial externa pendente. Código do gateway ainda não fornecido.' 
+      : `ID externo configurado: "${extId}"`;
+
+    const checkout = prod.checkoutUrl?.trim() || '';
+    const checkoutValid = Boolean(
+      checkout.length > 0 &&
+      checkout !== '#' &&
+      !checkout.includes('example.com') &&
+      (checkout.startsWith('http://') || checkout.startsWith('https://'))
+    );
+    const checkoutNote = checkoutValid
+      ? `Link direto de checkout válido (${checkout.substring(0, 35)}...)`
+      : 'Checkout direto ainda não configurado (em preparação)';
+
+    // Mapeamento em produtos_cursos
+    const matchingMappings = produtosCursos.filter(m => 
+      m.ativo !== false && (
+        (m.digital_product_id && m.digital_product_id === prod.id) ||
+        (m.produto_id && extId && !extIdIsPendente && m.produto_id === extId)
+      )
+    );
+    const mappingConflict = matchingMappings.length > 1;
+    const mappingValid = matchingMappings.length === 1;
+    let mappingNote = '';
+    if (mappingConflict) {
+      mappingNote = `ATENÇÃO: Múltiplos mapeamentos (${matchingMappings.length}) encontrados para este produto! O Webhook bloqueará por segurança.`;
+    } else if (mappingValid) {
+      mappingNote = `Mapeamento único ativo encontrado em produtos_cursos (ID: ${matchingMappings[0].id}, Destino: ${matchingMappings[0].produto_nome}).`;
+    } else {
+      mappingNote = 'Nenhum mapeamento ativo encontrado em produtos_cursos para este produto.';
+    }
+
+    // Entrega / Storage
+    let deliveryValid = false;
+    let deliveryNote = '';
+    if (prod.type === 'ebook') {
+      deliveryValid = Boolean(prod.storagePath && prod.storagePath.trim().length > 0);
+      deliveryNote = deliveryValid 
+        ? `Arquivo protegido no bucket Supabase: "${prod.storagePath}"`
+        : 'Caminho no storage ainda não informado.';
+    } else if (prod.type === 'curso') {
+      deliveryValid = Boolean(prod.courseId && prod.courseId.trim().length > 0);
+      deliveryNote = deliveryValid ? 'Curso estruturado vinculado com sucesso.' : 'Nenhum curso estruturado vinculado.';
+    } else {
+      deliveryValid = true;
+      deliveryNote = 'Entregável digital pronto para entrega.';
+    }
+
+    const commStatus = (prod.commercialStatus || (extIdIsPendente ? 'PENDENTE' : 'CONFIGURADO')) as any;
+    const isReadyForSales = externalIdValid && checkoutValid && mappingValid && !mappingConflict && (commStatus === 'ATIVO' || commStatus === 'CONFIGURADO');
+
+    return {
+      product: prod as DigitalProduct,
+      commercialStatus: commStatus,
+      externalIdValid,
+      externalIdNote,
+      checkoutValid,
+      checkoutNote,
+      mappingValid,
+      mappingConflict,
+      mappingNote,
+      matchedMapping: matchingMappings[0],
+      deliveryValid,
+      deliveryNote,
+      isReadyForSales
+    };
   };
 
   const handleCreateNew = () => {
@@ -353,6 +455,47 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                   )}
                 </div>
 
+                {/* Commercial Status & Integration Pill */}
+                <div className="pt-2 border-t border-[#1D2230] space-y-2">
+                  {prod.id === 'prod-depois-dos-60-real' ? (
+                    <div className="p-2.5 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 flex items-center justify-between text-xs">
+                      <div className="flex items-center gap-1.5 font-bold">
+                        <AlertCircle className="w-3.5 h-3.5 text-amber-400 shrink-0" />
+                        <span className="text-[11px]">PRODUTO: CONFIGURAÇÃO COMERCIAL PENDENTE</span>
+                      </div>
+                      <span className="text-[10px] uppercase font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-300 font-extrabold">
+                        PENDENTE
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center justify-between text-[11px]">
+                      <div className="flex items-center gap-1.5 text-gray-400">
+                        <Webhook className="w-3 h-3 text-[#D4AF37]" />
+                        <span>Status Comercial:</span>
+                      </div>
+                      <span className={`px-2 py-0.5 rounded text-[10px] font-bold uppercase border ${
+                        getCommercialBadge(prod.commercialStatus, prod.externalProductId).color
+                      }`}>
+                        {getCommercialBadge(prod.commercialStatus, prod.externalProductId).label}
+                      </span>
+                    </div>
+                  )}
+
+                  <div className="flex items-center justify-between text-[11px] text-gray-400">
+                    <span className="truncate max-w-[170px]">
+                      ID Ext: <span className="text-gray-300 font-mono">{prod.externalProductId || 'Pendente'}</span>
+                    </span>
+                    <button
+                      onClick={() => setVerifyingProduct(prod)}
+                      className="text-[#D4AF37] hover:underline font-bold text-[11px] flex items-center gap-1 transition-colors"
+                      title="Auditar integração e regras de liberação"
+                    >
+                      <Activity className="w-3 h-3" />
+                      Verificar Integração
+                    </button>
+                  </div>
+                </div>
+
                 {/* Actions Bottom Bar */}
                 <div className="flex items-center justify-between gap-2 pt-1 border-t border-[#1D2230]">
                   <div className="flex items-center gap-1">
@@ -591,27 +734,91 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                 </div>
               </div>
 
-              {/* COMMERCIAL & SALES STRATEGY CONFIG */}
+              {/* COMMERCIAL & GATEWAY INTEGRATION CONFIG */}
               <div className="p-4 bg-[#151922] rounded-xl border border-[#222738] space-y-4">
-                <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2">
-                  <Sparkles className="w-4 h-4" />
-                  Estratégia Comercial & Upsell (Para alunos sem acesso)
-                </h4>
+                <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pb-2 border-b border-[#222738]">
+                  <h4 className="text-xs font-bold text-[#D4AF37] uppercase tracking-wider flex items-center gap-2">
+                    <Webhook className="w-4 h-4 text-[#D4AF37]" />
+                    Integração Comercial & Gateway de Pagamentos (Kiwify / PerfectPay)
+                  </h4>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (editingProduct) {
+                        setVerifyingProduct(editingProduct as DigitalProduct);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-lg bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 text-[#D4AF37] text-xs font-bold flex items-center gap-1.5 transition-all self-start sm:self-auto"
+                  >
+                    <Activity className="w-3.5 h-3.5" />
+                    VERIFICAR INTEGRAÇÃO
+                  </button>
+                </div>
+
+                {/* Commercial Status & Platform */}
+                <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                   <div>
                     <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                      Estratégia de Venda ao Clicar em "Ver Oferta"
+                      Status Comercial do Produto *
                     </label>
                     <select
-                      value={editingProduct.salesStrategy || 'modal'}
-                      onChange={e => setEditingProduct(prev => ({ ...prev!, salesStrategy: e.target.value as any }))}
+                      value={editingProduct.commercialStatus || (editingProduct.externalProductId === 'PENDENTE' || !editingProduct.externalProductId ? 'PENDENTE' : 'CONFIGURADO')}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, commercialStatus: e.target.value as any }))}
                       className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
                     >
-                      <option value="modal">Modal de Oferta (Padrão Formação VIP)</option>
-                      <option value="sales_page">Página de Vendas Externa</option>
-                      <option value="presell">Página de Pré-Sell / VSL</option>
+                      <option value="PENDENTE">PENDENTE (Aguardando Gateway)</option>
+                      <option value="CONFIGURADO">CONFIGURADO (Dados preenchidos)</option>
+                      <option value="TESTE">TESTE (Em homologação)</option>
+                      <option value="ATIVO">ATIVO (Pronto para Vendas)</option>
+                      <option value="PAUSADO">PAUSADO (Vendas suspensas)</option>
+                      <option value="ERRO">ERRO (Inconsistência cadastral)</option>
                     </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      ID Externo do Produto no Gateway
+                    </label>
+                    <input
+                      type="text"
+                      placeholder="Ex: PPA882194, KW-PROD-991 ou PENDENTE"
+                      value={editingProduct.externalProductId || ''}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, externalProductId: e.target.value }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37] font-mono"
+                    />
+                    <span className="text-[10px] text-gray-400 block mt-1">Mantenha "PENDENTE" até emitir o ID real no gateway.</span>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Plataforma de Checkout
+                    </label>
+                    <select
+                      value={editingProduct.platform || 'todas'}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, platform: e.target.value as any }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    >
+                      <option value="kiwify">Kiwify</option>
+                      <option value="perfectpay">PerfectPay</option>
+                      <option value="todas">Todas / Multiplataforma</option>
+                    </select>
+                  </div>
+                </div>
+
+                {/* Webhook active toggle & Price */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="flex items-center gap-3 p-3 bg-[#0D0F12] rounded-xl border border-[#222738]">
+                    <input
+                      type="checkbox"
+                      id="webhookActiveToggle"
+                      checked={editingProduct.webhookActive ?? (editingProduct.externalProductId !== 'PENDENTE' && Boolean(editingProduct.externalProductId))}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, webhookActive: e.target.checked }))}
+                      className="w-4 h-4 rounded border-gray-600 text-[#D4AF37] focus:ring-[#D4AF37] bg-gray-900 cursor-pointer"
+                    />
+                    <label htmlFor="webhookActiveToggle" className="text-xs text-gray-300 font-semibold cursor-pointer">
+                      Habilitar processamento automático de Webhook para este produto
+                    </label>
                   </div>
 
                   <div>
@@ -629,29 +836,32 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                   </div>
                 </div>
 
+                {/* Strategy, Sales Page & Checkout */}
                 <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                  <div>
+                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                      Estratégia de Oferta
+                    </label>
+                    <select
+                      value={editingProduct.salesStrategy || 'modal'}
+                      onChange={e => setEditingProduct(prev => ({ ...prev!, salesStrategy: e.target.value as any }))}
+                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                    >
+                      <option value="modal">Modal de Oferta (Padrão Formação VIP)</option>
+                      <option value="sales_page">Página de Vendas Externa</option>
+                      <option value="presell">Página de Pré-Sell / VSL</option>
+                    </select>
+                  </div>
+
                   <div>
                     <label className="block text-xs font-semibold text-gray-300 mb-1.5">
                       Sales Page URL (Página de Vendas)
                     </label>
                     <input
                       type="url"
-                      placeholder="https://pay.hotmart.com/..."
+                      placeholder="https://depois-dos-60.vercel.app/"
                       value={editingProduct.salesPageUrl || ''}
                       onChange={e => setEditingProduct(prev => ({ ...prev!, salesPageUrl: e.target.value }))}
-                      className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                      Pre-Sell URL (Página Intermediária)
-                    </label>
-                    <input
-                      type="url"
-                      placeholder="https://meusite.com/presell-produto"
-                      value={editingProduct.presellUrl || ''}
-                      onChange={e => setEditingProduct(prev => ({ ...prev!, presellUrl: e.target.value }))}
                       className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
                     />
                   </div>
@@ -662,13 +872,35 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                     </label>
                     <input
                       type="url"
-                      placeholder="https://checkout.../checkout"
+                      placeholder="https://pay.gateway.com/checkout..."
                       value={editingProduct.checkoutUrl || ''}
                       onChange={e => setEditingProduct(prev => ({ ...prev!, checkoutUrl: e.target.value }))}
                       className="w-full bg-[#0D0F12] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
                     />
+                    <span className="text-[10px] text-gray-400 block mt-1">Deixe em branco para exibir aviso de checkout em preparação.</span>
                   </div>
                 </div>
+
+                {/* Real-time mapping badge */}
+                {(() => {
+                  const audit = getIntegrationAudit(editingProduct);
+                  if (!audit) return null;
+                  return (
+                    <div className={`p-3 rounded-xl border text-xs flex items-center justify-between ${
+                      audit.mappingValid ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' :
+                      audit.mappingConflict ? 'bg-rose-500/10 border-rose-500/30 text-rose-300' :
+                      'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                    }`}>
+                      <div className="flex items-center gap-2">
+                        {audit.mappingValid ? <CheckCircle2 className="w-4 h-4 text-emerald-400 shrink-0" /> : <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />}
+                        <span>{audit.mappingNote}</span>
+                      </div>
+                      <span className="font-mono text-[10px] px-2 py-0.5 rounded bg-black/40 font-bold uppercase">
+                        {audit.mappingValid ? 'Mapeamento OK' : audit.mappingConflict ? 'Conflito' : 'Não Mapeado'}
+                      </span>
+                    </div>
+                  );
+                })()}
               </div>
               {/* 1. CURSO */}
               {editingProduct.type === 'curso' && (
@@ -926,6 +1158,196 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
           </div>
         </div>
       )}
+
+      {/* AUDIT & VERIFICATION DIAGNOSTIC MODAL */}
+      {verifyingProduct && (() => {
+        const audit = getIntegrationAudit(verifyingProduct);
+        if (!audit) return null;
+        const isDepoisDos60 = verifyingProduct.id === 'prod-depois-dos-60-real';
+
+        return (
+          <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4 overflow-y-auto">
+            <div className="bg-[#0D0F12] border border-[#D4AF37]/40 rounded-2xl max-w-2xl w-full p-6 space-y-5 shadow-2xl my-8">
+              {/* Header */}
+              <div className="flex items-center justify-between pb-3 border-b border-[#1D2230]">
+                <div className="flex items-center gap-2.5">
+                  <div className="p-2 rounded-xl bg-[#D4AF37]/10 text-[#D4AF37] border border-[#D4AF37]/20">
+                    <Activity className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <h3 className="text-base font-bold text-white flex items-center gap-2">
+                      Auditoria de Integração Comercial & Webhook
+                    </h3>
+                    <p className="text-xs text-gray-400 font-mono">
+                      Produto: <span className="text-gray-200">{verifyingProduct.title}</span> ({verifyingProduct.id})
+                    </p>
+                  </div>
+                </div>
+                <button
+                  onClick={() => setVerifyingProduct(null)}
+                  className="p-1.5 rounded-lg text-gray-400 hover:text-white hover:bg-gray-800 transition-colors"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Status Banner */}
+              {isDepoisDos60 ? (
+                <div className="p-4 rounded-xl bg-amber-500/10 border border-amber-500/30 text-amber-300 space-y-1">
+                  <div className="flex items-center gap-2 font-bold text-sm">
+                    <AlertCircle className="w-4 h-4 text-amber-400 shrink-0" />
+                    <span>PRODUTO: CONFIGURAÇÃO COMERCIAL PENDENTE</span>
+                  </div>
+                  <p className="text-xs text-amber-200/80 leading-relaxed">
+                    Este é o produto real. Por determinação operacional, o ID de gateway externo e o checkout oficial ainda não foram fornecidos e não devem ser inventados. O sistema está 100% pronto para ativação imediata assim que forem fornecidos.
+                  </p>
+                </div>
+              ) : (
+                <div className={`p-4 rounded-xl border flex items-center justify-between ${
+                  audit.isReadyForSales ? 'bg-emerald-500/10 border-emerald-500/30 text-emerald-300' : 'bg-amber-500/10 border-amber-500/30 text-amber-300'
+                }`}>
+                  <div className="flex items-center gap-2.5">
+                    {audit.isReadyForSales ? <ShieldCheck className="w-5 h-5 text-emerald-400" /> : <AlertCircle className="w-5 h-5 text-amber-400" />}
+                    <div>
+                      <div className="text-sm font-bold">
+                        {audit.isReadyForSales ? 'Pronto para Vendas e Liberação Automática' : 'Integração Comercial Pendente'}
+                      </div>
+                      <div className="text-xs text-gray-400">
+                        Status Comercial: <span className="font-mono font-bold text-white">{audit.commercialStatus}</span>
+                      </div>
+                    </div>
+                  </div>
+                  <span className={`px-2.5 py-1 rounded-full text-xs font-extrabold uppercase border ${
+                    getCommercialBadge(audit.commercialStatus, verifyingProduct.externalProductId).color
+                  }`}>
+                    {getCommercialBadge(audit.commercialStatus, verifyingProduct.externalProductId).label}
+                  </span>
+                </div>
+              )}
+
+              {/* Checklist Items */}
+              <div className="space-y-3 text-xs">
+                {/* 1. ID Externo */}
+                <div className="p-3 bg-[#151922] rounded-xl border border-[#222738] flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {audit.externalIdValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-0.5">
+                    <div className="font-semibold text-white flex items-center justify-between">
+                      <span>1. ID Externo do Produto no Gateway</span>
+                      <span className="font-mono text-gray-400">
+                        {audit.externalIdValid ? `"${verifyingProduct.externalProductId}"` : 'Pendente'}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 leading-relaxed">{audit.externalIdNote}</p>
+                  </div>
+                </div>
+
+                {/* 2. Link de Checkout */}
+                <div className="p-3 bg-[#151922] rounded-xl border border-[#222738] flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {audit.checkoutValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-0.5">
+                    <div className="font-semibold text-white flex items-center justify-between">
+                      <span>2. URL de Checkout do Gateway</span>
+                      <span className="font-mono text-gray-400">
+                        {audit.checkoutValid ? 'Válido' : 'Não configurado'}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 leading-relaxed">
+                      {audit.checkoutValid 
+                        ? audit.checkoutNote 
+                        : 'Se um aluno sem acesso tentar comprar, o modal exibirá "Checkout em preparação" e o direcionará com segurança para a página de vendas real.'
+                      }
+                    </p>
+                  </div>
+                </div>
+
+                {/* 3. Mapeamento Estrito em produtos_cursos */}
+                <div className="p-3 bg-[#151922] rounded-xl border border-[#222738] flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {audit.mappingValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ) : audit.mappingConflict ? (
+                      <ShieldAlert className="w-4 h-4 text-rose-400" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <div className="font-semibold text-white flex items-center justify-between">
+                      <span>3. Resolução Estrita em produtos_cursos</span>
+                      <span className="font-mono text-gray-400">
+                        {audit.mappingValid ? '1 Mapeamento Ativo' : audit.mappingConflict ? 'Conflito Detectado' : 'Sem Mapeamento'}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 leading-relaxed">{audit.mappingNote}</p>
+                    <div className="mt-1 p-2 bg-[#0D0F12] rounded-lg border border-[#222738] text-[11px] font-mono text-gray-300">
+                      Regra do Sistema: produto_id EXTERNO &rarr; produtos_cursos.produto_id &rarr; digital_product_id &rarr; user_area_accesses.product_id
+                    </div>
+                  </div>
+                </div>
+
+                {/* 4. Entrega / Storage Privado */}
+                <div className="p-3 bg-[#151922] rounded-xl border border-[#222738] flex items-start gap-3">
+                  <div className="mt-0.5">
+                    {audit.deliveryValid ? (
+                      <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+                    ) : (
+                      <AlertCircle className="w-4 h-4 text-amber-400" />
+                    )}
+                  </div>
+                  <div className="flex-1 space-y-0.5">
+                    <div className="font-semibold text-white flex items-center justify-between">
+                      <span>4. Entregável e Proteção de Conteúdo</span>
+                      <span className="font-mono text-gray-400">
+                        {audit.deliveryValid ? 'Configurado' : 'Pendente'}
+                      </span>
+                    </div>
+                    <p className="text-gray-400 leading-relaxed">{audit.deliveryNote}</p>
+                  </div>
+                </div>
+              </div>
+
+              {/* Action Footer */}
+              <div className="pt-3 border-t border-[#1D2230] flex items-center justify-between">
+                <div className="text-xs text-gray-500">
+                  Sistema de liberação seguro contra injeção e acessos indevidos.
+                </div>
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const prodToEdit = verifyingProduct;
+                      setVerifyingProduct(null);
+                      handleEdit(prodToEdit);
+                    }}
+                    className="px-4 py-2 rounded-xl bg-[#D4AF37]/10 hover:bg-[#D4AF37]/20 border border-[#D4AF37]/30 text-[#D4AF37] font-bold text-xs transition-colors"
+                  >
+                    Editar Configurações
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setVerifyingProduct(null)}
+                    className="px-4 py-2 rounded-xl bg-[#151922] hover:bg-[#1D2230] text-gray-300 font-semibold text-xs transition-colors"
+                  >
+                    Fechar Auditoria
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        );
+      })()}
     </div>
   );
 };
