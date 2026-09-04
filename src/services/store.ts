@@ -154,9 +154,7 @@ class StoreManager {
     // Garantir sincronização das áreas de membros padrão
     INITIAL_MEMBER_AREAS.forEach(initArea => {
       const idx = this.memberAreas.findIndex(a => a.id === initArea.id);
-      if (idx === -1) {
-        this.memberAreas.push(initArea);
-      } else if (initArea.id === 'area-ebooks') {
+      if (idx !== -1 && initArea.id === 'area-ebooks') {
         // Se a área ainda tiver referências antigas do Unsplash, favicon antigo ou logo vazio, sincronizar com os assets oficiais
         if (!this.memberAreas[idx].logoUrl || this.memberAreas[idx].bannerUrl?.includes('unsplash') || this.memberAreas[idx].coverUrl?.includes('unsplash') || this.memberAreas[idx].faviconUrl?.includes('lucide')) {
           this.memberAreas[idx].name = initArea.name;
@@ -173,20 +171,12 @@ class StoreManager {
     // Garantir sincronização com produtos reais configurados em INITIAL_DIGITAL_PRODUCTS
     INITIAL_DIGITAL_PRODUCTS.forEach(initProd => {
       const idx = this.digitalProducts.findIndex(p => p.id === initProd.id);
-      if (idx === -1) {
-        this.digitalProducts.push(initProd);
-      } else if (initProd.id === 'prod-depois-dos-60-real') {
+      if (idx !== -1 && initProd.id === 'prod-depois-dos-60-real') {
         this.digitalProducts[idx] = { ...this.digitalProducts[idx], ...initProd };
       }
     });
     this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
-    // Garantir sincronização dos acessos padrões do mock
-    INITIAL_USER_AREA_ACCESSES.forEach(initAcc => {
-      const exists = this.userAreaAccesses.some(a => a.id === initAcc.id);
-      if (!exists) {
-        this.userAreaAccesses.push(initAcc);
-      }
-    });
+    // Sincronização de acessos foi ajustada para respeitar exclusões.
     this.accessesLoaded = true;
     this.heroBanners = loadStorage<HeroBanner[]>(STORAGE_KEYS.HERO_BANNERS, INITIAL_HERO_BANNERS);
     this.salesTransactions = loadStorage<SalesTransaction[]>(STORAGE_KEYS.SALES_TRANSACTIONS, INITIAL_SALES_TRANSACTIONS);
