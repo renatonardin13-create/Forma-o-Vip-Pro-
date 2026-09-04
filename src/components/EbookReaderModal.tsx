@@ -78,6 +78,35 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
 
       setFetchingUrl(true);
 
+      // REGRA FASE 3.9: Para o produto real, o fluxo oficial DEVE ser Storage privado (Signed URL -> Flipbook).
+      if (product.id === 'prod-depois-dos-60-real') {
+        if (!product.storagePath || !isSupabaseEnabled) {
+          if (isMounted) {
+            setSignedUrl(null);
+            setViewMode('pdf');
+            setFetchingUrl(false);
+          }
+          return;
+        }
+
+        try {
+          const url = await getEbookSignedUrl(product.id);
+          if (isMounted) {
+            setSignedUrl(url || null);
+            setViewMode('pdf');
+            setFetchingUrl(false);
+          }
+        } catch (err) {
+          console.error('[EbookReader] Falha ao obter Signed URL para o produto real:', err);
+          if (isMounted) {
+            setSignedUrl(null);
+            setViewMode('pdf');
+            setFetchingUrl(false);
+          }
+        }
+        return; // Break early to never use fallbacks for real product
+      }
+
       // 0. Se o arquivo foi subido em modo Local/Memória (URL começa com blob:)
       if (product.storagePath?.startsWith('blob:')) {
         if (isMounted) {
@@ -101,17 +130,6 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         } catch (err) {
           console.warn('[EbookReader] Assinatura remota não disponível no momento. Utilizando leitor digital estruturado:', err);
         }
-      }
-
-      // REGRA FASE 3.7: Para o produto real, o fluxo oficial DEVE ser Storage privado (Signed URL -> Flipbook).
-      // Se não houver storage_path, forçamos um estado de "indisponível".
-      if (product.id === 'prod-depois-dos-60-real' && !product.storagePath) {
-        if (isMounted) {
-          setSignedUrl(null);
-          setViewMode('pdf'); // Set viewMode to PDF so it renders the PdfViewer wrapper
-          setFetchingUrl(false);
-        }
-        return;
       }
 
       // 2. Se houver pdfUrl direta configurada (Apenas para legado/demo de outros produtos)
@@ -452,7 +470,9 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
               <div className="px-4 py-2 bg-[#121620] border-b border-[#1C2230] flex items-center justify-between text-xs shrink-0">
                 <div className="flex items-center gap-2 text-gray-300">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-                  <span className="font-semibold text-[11px] text-gray-200">E-book Seguro Conectado (Download Protegido)</span>
+                  <span className="font-semibold text-[11px] text-gray-200">
+                    {product.id === 'prod-depois-dos-60-real' ? 'Leitor VIP Seguro' : 'E-book Seguro Conectado'}
+                  </span>
                 </div>
                 <div className="flex items-center gap-2">
                   {product.id !== 'prod-depois-dos-60-real' && (
@@ -485,18 +505,6 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
             /* MODO 2: LEITOR DIGITAL VIP DE ALTA DEFINIÇÃO (RESPONSIVO E FORMATADO) */
             <div className="w-full max-w-3xl flex flex-col animate-in fade-in pb-16">
               
-              {/* Notificação discreta se for produto em sincronização */}
-              {product.id === 'prod-depois-dos-60-real' && !signedUrl && (
-                <div className="mb-4 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between text-xs">
-                  <div className="flex items-center gap-2 text-gray-300">
-                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
-                    <span>
-                      <strong className="text-white">Atenção:</strong> Este e-book ainda não foi enviado para o armazenamento privado.
-                    </span>
-                  </div>
-                </div>
-              )}
-
               {/* Notificação de Modo Local */}
               {signedUrl?.startsWith('blob:') && (
                 <div className="mb-4 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-between text-xs">

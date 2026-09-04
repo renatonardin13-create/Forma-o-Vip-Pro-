@@ -12,20 +12,19 @@ interface PdfViewerProps {
   url: string;
 }
 
-const FlipPage = React.forwardRef<HTMLDivElement, { pageNumber: number; width: number; height: number }>(({ pageNumber, width, height }, ref) => {
+const FlipPage = React.forwardRef<HTMLDivElement, { pageNumber: number }>(({ pageNumber }, ref) => {
   return (
-    <div ref={ref} className="bg-white shadow-lg overflow-hidden flex justify-center items-center" style={{ width: '100%', height: '100%' }}>
+    <div ref={ref} className="bg-white overflow-hidden flex justify-center items-center w-full h-full shadow-lg">
       <PdfPage 
         pageNumber={pageNumber} 
-        width={width}
-        height={height}
+        scale={2.0} // High resolution render
         renderTextLayer={true}
         renderAnnotationLayer={true}
-        className="max-w-full"
+        className="pdf-page-wrapper flex justify-center items-center w-full h-full"
         loading={
           <div className="flex items-center justify-center text-gray-400 min-h-full w-full bg-white">
             <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-[#D4AF37] mr-3"></div>
-            <span className="text-xs">Renderizando...</span>
+            <span className="text-xs">Carregando...</span>
           </div>
         }
       />
@@ -36,27 +35,8 @@ const FlipPage = React.forwardRef<HTMLDivElement, { pageNumber: number; width: n
 export function PdfViewer({ url }: PdfViewerProps) {
   const [numPages, setNumPages] = useState<number | null>(null);
   const [pageNumber, setPageNumber] = useState(1);
-  const [scale, setScale] = useState(1.0);
-  const [containerDimensions, setContainerDimensions] = useState({ width: 0, height: 0 });
-  const containerRef = useRef<HTMLDivElement>(null);
+  const [zoom, setZoom] = useState(1.0);
   const flipBookRef = useRef<any>(null);
-
-  useEffect(() => {
-    const updateDimensions = () => {
-      if (containerRef.current) {
-        setContainerDimensions({
-          width: containerRef.current.clientWidth,
-          height: containerRef.current.clientHeight
-        });
-      }
-    };
-
-    window.addEventListener('resize', updateDimensions);
-    // Add a small delay to ensure container is fully rendered before measuring
-    setTimeout(updateDimensions, 100);
-
-    return () => window.removeEventListener('resize', updateDimensions);
-  }, []);
 
   const onDocumentLoadSuccess = ({ numPages }: { numPages: number }) => {
     setNumPages(numPages);
@@ -115,9 +95,9 @@ export function PdfViewer({ url }: PdfViewerProps) {
     }
   };
 
-  const zoomIn = () => setScale(s => Math.min(s + 0.2, 2.0));
-  const zoomOut = () => setScale(s => Math.max(s - 0.2, 0.5));
-  const resetZoom = () => setScale(1.0);
+  const zoomIn = () => setZoom(z => Math.min(z + 0.2, 2.5));
+  const zoomOut = () => setZoom(z => Math.max(z - 0.2, 0.5));
+  const resetZoom = () => setZoom(1.0);
 
   // Keyboard navigation
   useEffect(() => {
@@ -128,39 +108,6 @@ export function PdfViewer({ url }: PdfViewerProps) {
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [numPages]);
-
-  // Calculate book dimensions based on container
-  // Standard A4 aspect ratio is roughly 1:1.414. We use 1:1.4 to fit typical ebooks nicely.
-  const aspectRatio = 1.4;
-  const isMobile = containerDimensions.width < 768;
-  const padding = isMobile ? 20 : 40;
-  
-  // Available space for the book
-  const availableWidth = containerDimensions.width - padding * 2;
-  const availableHeight = containerDimensions.height - padding * 2;
-  
-  // Max width of a single page
-  let pageW = availableWidth;
-  if (!isMobile) {
-    // In desktop, we show 2 pages side by side, so a single page gets half the width
-    pageW = availableWidth / 2;
-  }
-  
-  // Max height of a single page
-  let pageH = availableHeight;
-  
-  // Constrain based on aspect ratio
-  if (pageW * aspectRatio > pageH) {
-    // Height is the constraint
-    pageW = pageH / aspectRatio;
-  } else {
-    // Width is the constraint
-    pageH = pageW * aspectRatio;
-  }
-
-  // Final dimensions for HTMLFlipBook
-  const finalPageWidth = Math.max(200, Math.floor(pageW));
-  const finalPageHeight = Math.max(280, Math.floor(pageH));
 
   return (
     <div className="flex flex-col h-full w-full bg-[#0D0F14] rounded-2xl overflow-hidden shadow-2xl relative select-none">
@@ -174,11 +121,11 @@ export function PdfViewer({ url }: PdfViewerProps) {
         </div>
         
         <div className="flex items-center gap-2">
-          <button onClick={zoomOut} disabled={scale <= 0.5} className="p-1.5 rounded bg-[#1A2130] text-gray-300 hover:text-white hover:bg-[#222B3E] disabled:opacity-50 transition" title="Reduzir Zoom">
+          <button onClick={zoomOut} disabled={zoom <= 0.5} className="p-1.5 rounded bg-[#1A2130] text-gray-300 hover:text-white hover:bg-[#222B3E] disabled:opacity-50 transition" title="Reduzir Zoom">
             <ZoomOut className="w-4 h-4" />
           </button>
-          <span className="text-gray-400 text-xs font-mono w-12 text-center">{Math.round(scale * 100)}%</span>
-          <button onClick={zoomIn} disabled={scale >= 2.0} className="p-1.5 rounded bg-[#1A2130] text-gray-300 hover:text-white hover:bg-[#222B3E] disabled:opacity-50 transition" title="Aumentar Zoom">
+          <span className="text-gray-400 text-xs font-mono w-12 text-center">{Math.round(zoom * 100)}%</span>
+          <button onClick={zoomIn} disabled={zoom >= 2.5} className="p-1.5 rounded bg-[#1A2130] text-gray-300 hover:text-white hover:bg-[#222B3E] disabled:opacity-50 transition" title="Aumentar Zoom">
             <ZoomIn className="w-4 h-4" />
           </button>
           <button onClick={resetZoom} className="p-1.5 rounded bg-[#1A2130] text-gray-300 hover:text-white hover:bg-[#222B3E] transition ml-1" title="Resetar Zoom">
@@ -187,66 +134,64 @@ export function PdfViewer({ url }: PdfViewerProps) {
         </div>
       </div>
 
-      {/* Main Document Area */}
+      {/* Main Document Area - Using Flex and Object Fit approach */}
       <div 
-        ref={containerRef}
         className="flex-1 overflow-auto bg-[#060709] custom-scrollbar flex justify-center items-center relative"
         onContextMenu={(e) => e.preventDefault()}
       >
         <div 
-          className="relative transition-transform duration-200 w-full h-full flex justify-center items-center"
+          className="relative transition-all duration-200 flex justify-center items-center"
           style={{ 
-            transform: `scale(${scale})`, 
-            transformOrigin: 'center center' 
+            width: `${100 * zoom}%`, 
+            height: `${100 * zoom}%`, 
+            minWidth: '100%',
+            minHeight: '100%'
           }}
         >
-          {containerDimensions.width > 0 && (
-            <Document
-              file={url}
-              onLoadSuccess={onDocumentLoadSuccess}
-              loading={
-                <div className="flex flex-col items-center justify-center p-20 text-[#D4AF37]">
-                  <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D4AF37] mb-4"></div>
-                  <span className="font-medium tracking-wider text-sm uppercase">Carregando E-book...</span>
-                </div>
-              }
-              error={
-                <div className="p-10 text-rose-400 text-center font-medium bg-rose-500/10 rounded-xl border border-rose-500/20">
-                  Erro ao carregar o e-book protegido.
-                </div>
-              }
-            >
-              {numPages && (
-                <HTMLFlipBook 
-                  width={finalPageWidth} 
-                  height={finalPageHeight} 
-                  size="fixed"
-                  minWidth={finalPageWidth}
-                  maxWidth={finalPageWidth}
-                  minHeight={finalPageHeight}
-                  maxHeight={finalPageHeight}
-                  maxShadowOpacity={0.4}
-                  showCover={true}
-                  mobileScrollSupport={true}
-                  usePortrait={true}
-                  onFlip={onPage}
-                  ref={flipBookRef}
-                  className="html-book"
-                  style={{ margin: '0 auto', boxShadow: '0 0 40px rgba(0,0,0,0.6)' }}
-                  flippingTime={600}
-                >
-                  {Array.from(new Array(numPages), (el, index) => (
-                    <FlipPage 
-                      key={`page_${index + 1}`} 
-                      pageNumber={index + 1} 
-                      width={finalPageWidth}
-                      height={finalPageHeight}
-                    />
-                  ))}
-                </HTMLFlipBook>
-              )}
-            </Document>
-          )}
+          <Document
+            file={url}
+            onLoadSuccess={onDocumentLoadSuccess}
+            className="w-full h-full flex justify-center items-center p-4 md:p-8"
+            loading={
+              <div className="flex flex-col items-center justify-center p-20 text-[#D4AF37]">
+                <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-[#D4AF37] mb-4"></div>
+                <span className="font-medium tracking-wider text-sm uppercase">Carregando E-book...</span>
+              </div>
+            }
+            error={
+              <div className="p-10 text-rose-400 text-center font-medium bg-rose-500/10 rounded-xl border border-rose-500/20">
+                Erro ao carregar o e-book protegido.
+              </div>
+            }
+          >
+            {numPages && (
+              <HTMLFlipBook 
+                width={400} 
+                height={560} 
+                size="stretch"
+                minWidth={200}
+                maxWidth={1000}
+                minHeight={280}
+                maxHeight={1400}
+                maxShadowOpacity={0.4}
+                showCover={true}
+                mobileScrollSupport={true}
+                usePortrait={true}
+                onFlip={onPage}
+                ref={flipBookRef}
+                className="html-book"
+                style={{ margin: '0 auto' }}
+                flippingTime={600}
+              >
+                {Array.from(new Array(numPages), (el, index) => (
+                  <FlipPage 
+                    key={`page_${index + 1}`} 
+                    pageNumber={index + 1} 
+                  />
+                ))}
+              </HTMLFlipBook>
+            )}
+          </Document>
         </div>
       </div>
 
@@ -272,12 +217,26 @@ export function PdfViewer({ url }: PdfViewerProps) {
       </div>
 
       <style dangerouslySetInnerHTML={{__html: `
+        .react-pdf__Document {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
+        .pdf-page-wrapper {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+        }
         .react-pdf__Page__canvas {
           margin: 0 auto;
+          width: 100% !important;
+          height: 100% !important;
           max-width: 100% !important;
           max-height: 100% !important;
-          width: auto !important;
-          height: auto !important;
           object-fit: contain;
         }
         .html-book {
@@ -286,9 +245,13 @@ export function PdfViewer({ url }: PdfViewerProps) {
         .stf__wrapper {
           background: transparent !important;
         }
+        /* Disable text selection and interaction on the PDF overlay */
         .react-pdf__Page__textContent {
           user-select: none !important;
           pointer-events: none !important;
+        }
+        .react-pdf__Page__annotations {
+          display: none !important;
         }
         /* Custom scrollbar for container */
         .custom-scrollbar::-webkit-scrollbar {
