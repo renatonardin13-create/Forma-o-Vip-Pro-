@@ -1333,6 +1333,17 @@ export const INITIAL_USER_AREA_ACCESSES: UserAreaAccess[] = [
     updatedAt: '2025-02-01'
   },
   {
+    id: 'acc-renato-06',
+    userId: 'usr_renato_01',
+    areaId: 'area-ebooks',
+    productId: 'prod-depois-dos-60-real',
+    startDate: '2025-02-01',
+    status: 'active',
+    grantedBy: 'Sistema / Compra Kiwify',
+    createdAt: '2025-02-01',
+    updatedAt: '2025-02-01'
+  },
+  {
     id: 'acc-renato-03',
     userId: 'usr_renato_01',
     areaId: 'area-aplicativos',

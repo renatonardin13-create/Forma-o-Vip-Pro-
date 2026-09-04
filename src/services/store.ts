@@ -134,7 +134,7 @@ class StoreManager {
   private userAreaAccesses: UserAreaAccess[];
   private supabaseAccesses: UserAreaAccess[] = [];
   private supabaseMatriculas: Matricula[] = [];
-  private accessesLoaded: boolean = false;
+  private accessesLoaded: boolean = true;
   private heroBanners: HeroBanner[];
   private salesTransactions: SalesTransaction[];
   private activeAreaSlug: string = 'formacao-vip';
@@ -180,6 +180,14 @@ class StoreManager {
       }
     });
     this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
+    // Garantir sincronização dos acessos padrões do mock
+    INITIAL_USER_AREA_ACCESSES.forEach(initAcc => {
+      const exists = this.userAreaAccesses.some(a => a.id === initAcc.id);
+      if (!exists) {
+        this.userAreaAccesses.push(initAcc);
+      }
+    });
+    this.accessesLoaded = true;
     this.heroBanners = loadStorage<HeroBanner[]>(STORAGE_KEYS.HERO_BANNERS, INITIAL_HERO_BANNERS);
     this.salesTransactions = loadStorage<SalesTransaction[]>(STORAGE_KEYS.SALES_TRANSACTIONS, INITIAL_SALES_TRANSACTIONS);
     this.progress = loadStorage<Record<string, StudentProgress>>(STORAGE_KEYS.PROGRESS, {
@@ -558,6 +566,9 @@ class StoreManager {
       console.log(`[Store] Sucesso: ${this.supabaseAccesses.length} acessos e ${this.supabaseMatriculas.length} matrículas carregados do Supabase.`);
     } catch (err) {
       console.error('[Store] Erro ao carregar acessos do Supabase:', err);
+    } finally {
+      this.accessesLoaded = true;
+      this.notify();
     }
   }
 
@@ -565,19 +576,34 @@ class StoreManager {
    * Supabase Integration: Check for existing session and listen for auth changes
    */
   public async initializeAuth(): Promise<void> {
-    if (this.authInitialized || !isSupabaseConfigured()) return;
+    if (this.authInitialized) return;
     this.authInitialized = true;
+
+    if (!isSupabaseConfigured()) {
+      this.accessesLoaded = true;
+      this.notify();
+      return;
+    }
 
     // FASE 2.2: Inicializa produtos em paralelo com a auth
     this.initializeProducts().catch(err => console.error('[Store] Product init error:', err));
     this.initializeProdutosCursos().catch(err => console.error('[Store] Mapping init error:', err));
 
-    // Get current session
-    const { data: { session } } = await supabase.auth.getSession();
-    if (session?.user) {
-      this.handleSupabaseUser(session.user);
-      // FASE 2.3: Inicializa acessos após autenticação
-      this.initializeAccess(session.user.id).catch(err => console.error('[Store] Access init error:', err));
+    try {
+      // Get current session
+      const { data: { session } } = await supabase.auth.getSession();
+      if (session?.user) {
+        this.handleSupabaseUser(session.user);
+        // FASE 2.3: Inicializa acessos após autenticação
+        await this.initializeAccess(session.user.id);
+      } else {
+        this.accessesLoaded = true;
+        this.notify();
+      }
+    } catch (err) {
+      console.error('[Store] Erro ao carregar sessão inicial do Supabase:', err);
+      this.accessesLoaded = true;
+      this.notify();
     }
 
     // Listen for auth changes
@@ -591,7 +617,7 @@ class StoreManager {
         this.currentUser = null;
         this.supabaseAccesses = [];
         this.supabaseMatriculas = [];
-        this.accessesLoaded = false;
+        this.accessesLoaded = true;
         saveStorage(STORAGE_KEYS.CURRENT_USER, null);
         this.notify();
       }
@@ -643,6 +669,7 @@ class StoreManager {
       const student = this.users.find(u => u.role === 'student' && u.email === 'renatonardin13@gmail.com') || INITIAL_USER;
       this.currentUser = student;
     }
+    this.accessesLoaded = true;
     saveStorage(STORAGE_KEYS.CURRENT_USER, this.currentUser);
     this.notify();
   }
