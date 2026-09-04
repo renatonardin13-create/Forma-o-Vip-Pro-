@@ -1,0 +1,75 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#1A1612" />
+      <stop offset="50%" stop-color="#120F0C" />
+      <stop offset="100%" stop-color="#080705" />
+    </linearGradient>
+    <linearGradient id="goldLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF3D1" />
+      <stop offset="35%" stop-color="#F5C065" />
+      <stop offset="70%" stop-color="#E6A23C" />
+      <stop offset="100%" stop-color="#B8771A" />
+    </linearGradient>
+    <linearGradient id="goldDark" x1="0%" y1="100%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#996010" />
+      <stop offset="50%" stop-color="#C78722" />
+      <stop offset="100%" stop-color="#F7D085" />
+    </linearGradient>
+    <radialGradient id="goldGlow" cx="50%" cy="50%" r="50%">
+      <stop offset="0%" stop-color="#E6A23C" stop-opacity="0.35" />
+      <stop offset="60%" stop-color="#E6A23C" stop-opacity="0.1" />
+      <stop offset="100%" stop-color="#E6A23C" stop-opacity="0" />
+    </radialGradient>
+    <filter id="dropShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#000000" flood-opacity="0.8" />
+      <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#E6A23C" flood-opacity="0.3" />
+    </filter>
+  </defs>
+
+  <!-- Background Base (Squircle) -->
+  <rect x="16" y="16" width="480" height="480" rx="108" fill="url(#bgGrad)" stroke="#3A2D1F" stroke-width="4" />
+  
+  <!-- Subtle Inner Border -->
+  <rect x="28" y="28" width="456" height="456" rx="96" fill="none" stroke="#E6A23C" stroke-opacity="0.25" stroke-width="2" />
+
+  <!-- Ambient Glow -->
+  <circle cx="256" cy="256" r="210" fill="url(#goldGlow)" />
+
+  <!-- Central Icon: Stylized Open Book Wings -->
+  <g filter="url(#dropShadow)" transform="translate(0, -6)">
+    <!-- Base Book Spine Arch -->
+    <path d="M 256 368 C 240 354 200 342 136 346 C 114 347 98 351 86 355 L 86 210 C 98 206 122 198 152 196 C 196 193 234 208 256 226 C 278 208 316 193 360 196 C 390 198 414 206 426 210 L 426 355 C 414 351 398 347 376 346 C 312 342 272 354 256 368 Z" 
+          fill="#13100D" stroke="url(#goldDark)" stroke-width="4" stroke-linejoin="round" />
+
+    <!-- Left Wing (Pages Layer 1) -->
+    <path d="M 256 226 C 234 208 196 193 152 196 C 122 198 98 206 86 210 L 98 162 C 116 156 142 148 174 146 C 218 143 246 160 256 174 Z" 
+          fill="url(#goldDark)" opacity="0.75" />
+
+    <!-- Left Wing (Primary Page) -->
+    <path d="M 256 368 C 238 350 196 332 142 334 C 112 335 94 340 82 344 L 98 162 C 116 156 142 148 174 146 C 220 143 250 168 256 186 Z" 
+          fill="url(#goldLight)" />
+
+    <!-- Right Wing (Pages Layer 1) -->
+    <path d="M 256 226 C 278 208 316 193 360 196 C 390 198 414 206 426 210 L 414 162 C 396 156 370 148 338 146 C 294 143 266 160 256 174 Z" 
+          fill="url(#goldDark)" opacity="0.75" />
+
+    <!-- Right Wing (Primary Page) -->
+    <path d="M 256 368 C 274 350 316 332 370 334 C 400 335 418 340 430 344 L 414 162 C 396 156 370 148 338 146 C 292 143 262 168 256 186 Z" 
+          fill="url(#goldLight)" />
+
+    <!-- Inner Page Engravings (Knowledge Lines Left) -->
+    <path d="M 132 208 C 160 205 198 214 232 232" stroke="#B8771A" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M 124 246 C 154 243 194 252 232 272" stroke="#B8771A" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M 120 286 C 150 283 190 292 232 312" stroke="#B8771A" stroke-width="4" stroke-linecap="round" fill="none" />
+
+    <!-- Inner Page Engravings (Knowledge Lines Right) -->
+    <path d="M 380 208 C 352 205 314 214 280 232" stroke="#B8771A" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M 388 246 C 358 243 318 252 280 272" stroke="#B8771A" stroke-width="4" stroke-linecap="round" fill="none" />
+    <path d="M 392 286 C 362 283 322 292 280 312" stroke="#B8771A" stroke-width="4" stroke-linecap="round" fill="none" />
+
+    <!-- Central Spine Beam & Bookmark -->
+    <path d="M 252 170 L 260 170 L 260 382 L 256 386 L 252 382 Z" fill="#FFF3D1" />
+    <polygon points="256,120 264,136 280,140 268,152 272,168 256,158 240,168 244,152 232,140 248,136" fill="url(#goldLight)" />
+  </g>
+</svg>

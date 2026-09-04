@@ -26,11 +26,13 @@ import {
   Eye,
   ArrowRight,
   RefreshCw,
-  FolderKanban
+  FolderKanban,
+  Upload
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { MemberArea, MemberAreaType, LoginCustomization } from '../types';
 import { INITIAL_LOGIN_CUSTOMIZATION } from '../data/mockData';
+import { optimizeImageFile } from '../utils/imageOptimizer';
 
 interface MemberAreasManagerProps {
   onOpenArea?: (slug: string) => void;
@@ -58,9 +60,40 @@ export const MemberAreasManager: React.FC<MemberAreasManagerProps> = ({
   const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
+  const [uploadingField, setUploadingField] = useState<string | null>(null);
+
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3000);
+  };
+
+  const handleAssetUpload = async (
+    e: React.ChangeEvent<HTMLInputElement>,
+    fieldKey: 'logoUrl' | 'faviconUrl' | 'bannerUrl' | 'coverUrl',
+    maxWidth: number,
+    maxHeight: number
+  ) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    try {
+      setUploadingField(fieldKey);
+      const isPngOrSvg = file.type === 'image/png' || file.type === 'image/svg+xml';
+      const res = await optimizeImageFile(file, {
+        maxWidth,
+        maxHeight,
+        quality: 0.90,
+        mimeType: isPngOrSvg ? 'image/png' : 'image/jpeg'
+      });
+      setEditingArea(prev => prev ? ({ ...prev, [fieldKey]: res.dataUrl }) : null);
+      showToast(`Imagem atualizada com sucesso!`);
+    } catch (err) {
+      console.error('Erro ao processar imagem:', err);
+      showToast('Erro ao processar imagem. Tente outro arquivo.');
+    } finally {
+      setUploadingField(null);
+      e.target.value = '';
+    }
   };
 
   const handleCreateNew = () => {
@@ -69,12 +102,12 @@ export const MemberAreasManager: React.FC<MemberAreasManagerProps> = ({
       slug: '',
       type: 'vip',
       description: '',
-      logoUrl: '',
-      faviconUrl: 'https://api.iconify.design/lucide:crown.svg?color=%23D4AF37',
-      coverUrl: 'https://images.unsplash.com/photo-1519389950473-47ba0277781c?auto=format&fit=crop&w=1200&q=80',
-      bannerUrl: 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80',
-      primaryColor: '#D4AF37',
-      secondaryColor: '#151922',
+      logoUrl: '/areas/ebooks/logo.png',
+      faviconUrl: '/areas/ebooks/favicon.png',
+      coverUrl: '/areas/ebooks/capa.png',
+      bannerUrl: '/areas/ebooks/banner.png',
+      primaryColor: '#E6A23C',
+      secondaryColor: '#1A1612',
       status: 'active',
       welcomeText: '',
       heroTitle: '',
@@ -249,9 +282,10 @@ export const MemberAreasManager: React.FC<MemberAreasManagerProps> = ({
               {/* Cover Banner Header */}
               <div className="relative h-36 w-full bg-[#151922] overflow-hidden">
                 <img 
-                  src={area.bannerUrl || area.coverUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=800&q=80'} 
+                  src={area.bannerUrl || area.coverUrl || '/areas/ebooks/banner.png'} 
                   alt={area.name}
                   className="w-full h-full object-cover object-center group-hover:scale-105 transition-transform duration-500 opacity-60"
+                  referrerPolicy="no-referrer"
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#0D0F12] via-[#0D0F12]/40 to-transparent" />
 
@@ -544,57 +578,177 @@ export const MemberAreasManager: React.FC<MemberAreasManagerProps> = ({
                 <div className="space-y-4">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                        Logo da Área (URL da Imagem)
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://..."
-                        value={editingArea.logoUrl || ''}
-                        onChange={e => setEditingArea(prev => ({ ...prev!, logoUrl: e.target.value }))}
-                        className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-300">
+                          Logo da Área (URL da Imagem)
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-medium">800 × 200 px</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="/areas/ebooks/logo.png ou https://..."
+                          value={editingArea.logoUrl || ''}
+                          onChange={e => setEditingArea(prev => ({ ...prev!, logoUrl: e.target.value }))}
+                          className="flex-1 bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                        />
+                        <label 
+                          title="Fazer upload do Logo (800x200 px)"
+                          className={`p-2.5 bg-[#1C2230] hover:bg-[#D4AF37]/20 border border-[#2E364A] hover:border-[#D4AF37]/50 rounded-xl cursor-pointer text-gray-300 hover:text-[#D4AF37] transition-all flex items-center justify-center shrink-0 ${uploadingField === 'logoUrl' ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <Upload className="w-4 h-4" />
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={e => handleAssetUpload(e, 'logoUrl', 800, 200)}
+                          />
+                        </label>
+                      </div>
+                      {editingArea.logoUrl && (
+                        <div className="mt-2 p-2 bg-[#0E1015] border border-[#222738] rounded-lg flex items-center gap-3">
+                          <img 
+                            src={editingArea.logoUrl} 
+                            alt="Preview Logo" 
+                            className="h-6 max-w-[120px] object-contain" 
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="text-[10px] text-gray-400 font-mono truncate flex-1">
+                            {editingArea.logoUrl.startsWith('data:') ? 'Asset personalizado (carregado)' : editingArea.logoUrl}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                        Favicon da Área (URL do Ícone)
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://api.iconify.design/lucide:crown.svg"
-                        value={editingArea.faviconUrl || ''}
-                        onChange={e => setEditingArea(prev => ({ ...prev!, faviconUrl: e.target.value }))}
-                        className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-300">
+                          Favicon da Área (URL do Ícone)
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-medium">512 × 512 px</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="/areas/ebooks/favicon.png ou https://..."
+                          value={editingArea.faviconUrl || ''}
+                          onChange={e => setEditingArea(prev => ({ ...prev!, faviconUrl: e.target.value }))}
+                          className="flex-1 bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                        />
+                        <label 
+                          title="Fazer upload do Favicon (512x512 px)"
+                          className={`p-2.5 bg-[#1C2230] hover:bg-[#D4AF37]/20 border border-[#2E364A] hover:border-[#D4AF37]/50 rounded-xl cursor-pointer text-gray-300 hover:text-[#D4AF37] transition-all flex items-center justify-center shrink-0 ${uploadingField === 'faviconUrl' ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <Upload className="w-4 h-4" />
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={e => handleAssetUpload(e, 'faviconUrl', 512, 512)}
+                          />
+                        </label>
+                      </div>
+                      {editingArea.faviconUrl && (
+                        <div className="mt-2 p-2 bg-[#0E1015] border border-[#222738] rounded-lg flex items-center gap-3">
+                          <img 
+                            src={editingArea.faviconUrl} 
+                            alt="Preview Favicon" 
+                            className="w-6 h-6 object-contain rounded" 
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="text-[10px] text-gray-400 font-mono truncate flex-1">
+                            {editingArea.faviconUrl.startsWith('data:') ? 'Asset personalizado (carregado)' : editingArea.faviconUrl}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                     <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                        Banner Horizontal Principal (Desktop)
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        value={editingArea.bannerUrl || ''}
-                        onChange={e => setEditingArea(prev => ({ ...prev!, bannerUrl: e.target.value }))}
-                        className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-300">
+                          Banner Horizontal Principal (Desktop)
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-medium">1920 × 600 px</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="/areas/ebooks/banner.png ou https://..."
+                          value={editingArea.bannerUrl || ''}
+                          onChange={e => setEditingArea(prev => ({ ...prev!, bannerUrl: e.target.value }))}
+                          className="flex-1 bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                        />
+                        <label 
+                          title="Fazer upload do Banner (1920x600 px)"
+                          className={`p-2.5 bg-[#1C2230] hover:bg-[#D4AF37]/20 border border-[#2E364A] hover:border-[#D4AF37]/50 rounded-xl cursor-pointer text-gray-300 hover:text-[#D4AF37] transition-all flex items-center justify-center shrink-0 ${uploadingField === 'bannerUrl' ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <Upload className="w-4 h-4" />
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={e => handleAssetUpload(e, 'bannerUrl', 1920, 600)}
+                          />
+                        </label>
+                      </div>
+                      {editingArea.bannerUrl && (
+                        <div className="mt-2 p-2 bg-[#0E1015] border border-[#222738] rounded-lg flex items-center gap-3">
+                          <img 
+                            src={editingArea.bannerUrl} 
+                            alt="Preview Banner" 
+                            className="h-8 w-24 object-cover rounded" 
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="text-[10px] text-gray-400 font-mono truncate flex-1">
+                            {editingArea.bannerUrl.startsWith('data:') ? 'Asset personalizado (carregado)' : editingArea.bannerUrl}
+                          </span>
+                        </div>
+                      )}
                     </div>
 
                     <div>
-                      <label className="block text-xs font-semibold text-gray-300 mb-1.5">
-                        Imagem de Capa (Card / Thumbnail)
-                      </label>
-                      <input
-                        type="url"
-                        placeholder="https://images.unsplash.com/..."
-                        value={editingArea.coverUrl || ''}
-                        onChange={e => setEditingArea(prev => ({ ...prev!, coverUrl: e.target.value }))}
-                        className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
-                      />
+                      <div className="flex items-center justify-between mb-1.5">
+                        <label className="block text-xs font-semibold text-gray-300">
+                          Imagem de Capa (Card / Thumbnail)
+                        </label>
+                        <span className="text-[10px] text-gray-400 font-medium">1000 × 1250 px (4:5)</span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <input
+                          type="url"
+                          placeholder="/areas/ebooks/capa.png ou https://..."
+                          value={editingArea.coverUrl || ''}
+                          onChange={e => setEditingArea(prev => ({ ...prev!, coverUrl: e.target.value }))}
+                          className="flex-1 bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                        />
+                        <label 
+                          title="Fazer upload da Capa (1000x1250 px)"
+                          className={`p-2.5 bg-[#1C2230] hover:bg-[#D4AF37]/20 border border-[#2E364A] hover:border-[#D4AF37]/50 rounded-xl cursor-pointer text-gray-300 hover:text-[#D4AF37] transition-all flex items-center justify-center shrink-0 ${uploadingField === 'coverUrl' ? 'opacity-50 pointer-events-none' : ''}`}
+                        >
+                          <Upload className="w-4 h-4" />
+                          <input
+                            type="file"
+                            accept="image/png,image/jpeg,image/webp,image/svg+xml"
+                            className="hidden"
+                            onChange={e => handleAssetUpload(e, 'coverUrl', 1000, 1250)}
+                          />
+                        </label>
+                      </div>
+                      {editingArea.coverUrl && (
+                        <div className="mt-2 p-2 bg-[#0E1015] border border-[#222738] rounded-lg flex items-center gap-3">
+                          <img 
+                            src={editingArea.coverUrl} 
+                            alt="Preview Capa" 
+                            className="h-10 w-8 object-cover rounded" 
+                            referrerPolicy="no-referrer"
+                          />
+                          <span className="text-[10px] text-gray-400 font-mono truncate flex-1">
+                            {editingArea.coverUrl.startsWith('data:') ? 'Asset personalizado (carregado)' : editingArea.coverUrl}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
 

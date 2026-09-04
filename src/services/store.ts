@@ -156,6 +156,17 @@ class StoreManager {
       const idx = this.memberAreas.findIndex(a => a.id === initArea.id);
       if (idx === -1) {
         this.memberAreas.push(initArea);
+      } else if (initArea.id === 'area-ebooks') {
+        // Se a área ainda tiver referências antigas do Unsplash, favicon antigo ou logo vazio, sincronizar com os assets oficiais
+        if (!this.memberAreas[idx].logoUrl || this.memberAreas[idx].bannerUrl?.includes('unsplash') || this.memberAreas[idx].coverUrl?.includes('unsplash') || this.memberAreas[idx].faviconUrl?.includes('lucide')) {
+          this.memberAreas[idx].name = initArea.name;
+          this.memberAreas[idx].logoUrl = initArea.logoUrl;
+          this.memberAreas[idx].faviconUrl = initArea.faviconUrl;
+          this.memberAreas[idx].bannerUrl = initArea.bannerUrl;
+          this.memberAreas[idx].coverUrl = initArea.coverUrl;
+          this.memberAreas[idx].primaryColor = initArea.primaryColor;
+          this.memberAreas[idx].secondaryColor = initArea.secondaryColor;
+        }
       }
     });
     this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);

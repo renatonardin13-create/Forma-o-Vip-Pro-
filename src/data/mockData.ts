@@ -811,14 +811,14 @@ export const INITIAL_MEMBER_AREAS: MemberArea[] = [
   },
   {
     id: 'area-ebooks',
-    name: 'E-books & Playbooks de Elite',
+    name: 'E-books (PDF)',
     slug: 'ebooks',
     type: 'ebooks',
-    description: 'Biblioteca digital com livros, guias passo a passo, frameworks de copywriting, contratos jurídicos e playbooks práticos.',
-    logoUrl: '',
-    faviconUrl: 'https://api.iconify.design/lucide:book-open.svg?color=%23D4AF37',
-    coverUrl: 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=1200&q=80',
-    bannerUrl: 'https://images.unsplash.com/photo-1507842229451-7f01be7f7396?auto=format&fit=crop&w=1600&q=80',
+    description: 'Biblioteca digital com livros, guias passo a passo, frameworks de copywriting, contratos jurídicos e playbooks práticos em PDF de alta resolução.',
+    logoUrl: '/areas/ebooks/logo.png',
+    faviconUrl: '/areas/ebooks/favicon.png',
+    coverUrl: '/areas/ebooks/capa.png',
+    bannerUrl: '/areas/ebooks/banner.png',
     primaryColor: '#E6A23C',
     secondaryColor: '#1A1612',
     status: 'active',
@@ -844,7 +844,7 @@ export const INITIAL_MEMBER_AREAS: MemberArea[] = [
       formTitle: 'Portal dos E-books',
       formSubtitle: 'Entre com seu e-mail de compra para ler seus livros digitais.',
       backgroundType: 'image',
-      backgroundUrl: 'https://images.unsplash.com/photo-1507842229451-7f01be7f7396?auto=format&fit=crop&w=1600&q=80'
+      backgroundUrl: '/areas/ebooks/banner.png'
     }
   },
   {

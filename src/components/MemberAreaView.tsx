@@ -133,20 +133,25 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-20 flex items-center justify-between">
           {/* Brand Logo & Area Info */}
           <div className="flex items-center gap-4">
-            <div 
-              className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-lg"
-              style={{
-                backgroundColor: `${primaryColor}15`,
-                borderColor: `${primaryColor}40`,
-                color: primaryColor
-              }}
-            >
-              {area.logoUrl ? (
-                <img src={area.logoUrl} alt={area.name} className="w-7 h-7 object-contain rounded-lg" />
-              ) : (
+            {area.logoUrl ? (
+              <img 
+                src={area.logoUrl} 
+                alt={area.name} 
+                className="h-9 max-h-9 w-auto max-w-[200px] object-contain" 
+                referrerPolicy="no-referrer"
+              />
+            ) : (
+              <div 
+                className="w-10 h-10 rounded-xl flex items-center justify-center border shadow-lg"
+                style={{
+                  backgroundColor: `${primaryColor}15`,
+                  borderColor: `${primaryColor}40`,
+                  color: primaryColor
+                }}
+              >
                 <Crown className="w-5 h-5" />
-              )}
-            </div>
+              </div>
+            )}
 
             <div>
               <div className="flex items-center gap-2">
@@ -283,9 +288,10 @@ export const MemberAreaView: React.FC<MemberAreaViewProps> = ({
         {/* Background Image with Ambient Glow */}
         <div className="absolute inset-0 z-0">
           <img
-            src={area.bannerUrl || area.coverUrl || 'https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?auto=format&fit=crop&w=1600&q=80'}
+            src={area.bannerUrl || area.coverUrl || '/areas/ebooks/banner.png'}
             alt={area.name}
-            className="w-full h-full object-cover opacity-25"
+            className="w-full h-full object-cover opacity-40 object-right sm:object-center"
+            referrerPolicy="no-referrer"
           />
           <div className="absolute inset-0 bg-gradient-to-t from-[#08090C] via-[#0D0F12]/80 to-transparent" />
         </div>

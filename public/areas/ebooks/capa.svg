@@ -1,0 +1,142 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1000 1250" width="1000" height="1250">
+  <defs>
+    <!-- Background Radial Gradients -->
+    <radialGradient id="coverBg" cx="50%" cy="55%" r="65%">
+      <stop offset="0%" stop-color="#221B13" />
+      <stop offset="35%" stop-color="#14110E" />
+      <stop offset="70%" stop-color="#0B0C0F" />
+      <stop offset="100%" stop-color="#050507" />
+    </radialGradient>
+    <radialGradient id="centralAura" cx="50%" cy="60%" r="45%">
+      <stop offset="0%" stop-color="#E6A23C" stop-opacity="0.32" />
+      <stop offset="45%" stop-color="#E6A23C" stop-opacity="0.12" />
+      <stop offset="85%" stop-color="#E6A23C" stop-opacity="0.02" />
+      <stop offset="100%" stop-color="#E6A23C" stop-opacity="0" />
+    </radialGradient>
+
+    <!-- Metallic Gold Materials -->
+    <linearGradient id="goldPlateLight" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#FFF5DB" />
+      <stop offset="25%" stop-color="#F7D085" />
+      <stop offset="60%" stop-color="#E6A23C" />
+      <stop offset="100%" stop-color="#9C6415" />
+    </linearGradient>
+    <linearGradient id="goldSpineGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" stop-color="#FFE8B0" />
+      <stop offset="50%" stop-color="#E6A23C" />
+      <stop offset="100%" stop-color="#734608" />
+    </linearGradient>
+    <linearGradient id="obsidianCard" x1="0%" y1="0%" x2="100%" y2="100%">
+      <stop offset="0%" stop-color="#2A303F" />
+      <stop offset="40%" stop-color="#181C26" />
+      <stop offset="100%" stop-color="#0E1017" />
+    </linearGradient>
+    <linearGradient id="pageSilver" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" stop-color="#F1F5F9" />
+      <stop offset="50%" stop-color="#CBD5E1" />
+      <stop offset="100%" stop-color="#94A3B8" />
+    </linearGradient>
+
+    <!-- Shading & Lighting Filters -->
+    <filter id="cardShadow" x="-20%" y="-20%" width="140%" height="140%">
+      <feDropShadow dx="0" dy="24" stdDeviation="28" flood-color="#000000" flood-opacity="0.85" />
+      <feDropShadow dx="0" dy="8" stdDeviation="12" flood-color="#E6A23C" flood-opacity="0.25" />
+    </filter>
+    <filter id="softRay" x="-30%" y="-30%" width="160%" height="160%">
+      <feGaussianBlur stdDeviation="30" />
+    </filter>
+  </defs>
+
+  <!-- Canvas Base -->
+  <rect x="0" y="0" width="1000" height="1250" fill="url(#coverBg)" />
+
+  <!-- Geometric Luxury Border Accent (Inner Frame) -->
+  <rect x="36" y="36" width="928" height="1178" rx="28" fill="none" stroke="#26211B" stroke-width="2" />
+  <rect x="44" y="44" width="912" height="1162" rx="20" fill="none" stroke="#E6A23C" stroke-opacity="0.15" stroke-width="1.5" />
+
+  <!-- Corner Brackets in Gold -->
+  <path d="M 44 90 L 44 44 L 90 44" fill="none" stroke="#E6A23C" stroke-width="3" stroke-linecap="round" />
+  <path d="M 956 90 L 956 44 L 910 44" fill="none" stroke="#E6A23C" stroke-width="3" stroke-linecap="round" />
+  <path d="M 44 1160 L 44 1206 L 90 1206" fill="none" stroke="#E6A23C" stroke-width="3" stroke-linecap="round" />
+  <path d="M 956 1160 L 956 1206 L 910 1206" fill="none" stroke="#E6A23C" stroke-width="3" stroke-linecap="round" />
+
+  <!-- Upper Atmosphere (Left clean for UI title overlay) -->
+  <circle cx="500" cy="720" r="420" fill="url(#centralAura)" filter="url(#softRay)" />
+
+  <!-- Subtle Overhead Volumetric Light -->
+  <polygon points="400,0 600,0 720,600 280,600" fill="#E6A23C" opacity="0.05" />
+
+  <!-- Reflective Obsidian Pedestal / Podium Base -->
+  <g transform="translate(180, 880)">
+    <polygon points="70,0 570,0 640,60 0,60" fill="#141822" stroke="#2B3346" stroke-width="2" />
+    <polygon points="0,60 640,60 640,110 0,110" fill="#0C0E14" />
+    <line x1="0" y1="60" x2="640" y2="60" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.5" />
+    <!-- Golden Rim Underglow -->
+    <line x1="60" y1="0" x2="580" y2="0" stroke="#E6A23C" stroke-width="3" stroke-opacity="0.75" />
+  </g>
+
+  <!-- Central Composition: Triad of Premium Executive E-Book Volumes -->
+  <g filter="url(#cardShadow)">
+    
+    <!-- LEFT VOLUME: Playbook Framework (Angled Left) -->
+    <g transform="translate(240, 500) rotate(-14)">
+      <!-- Backing Body -->
+      <polygon points="0,0 190,-40 190,380 0,420" fill="url(#obsidianCard)" stroke="#333D52" stroke-width="2" />
+      <!-- Page Block -->
+      <polygon points="190,-40 216,-34 216,386 190,380" fill="url(#pageSilver)" />
+      <!-- Geometric Motifs -->
+      <rect x="30" y="50" width="130" height="280" rx="4" fill="none" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.4" />
+      <line x1="45" y1="80" x2="145" y2="60" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.7" />
+      <line x1="45" y1="105" x2="125" y2="90" stroke="#E6A23C" stroke-width="1.5" stroke-opacity="0.4" />
+      <polygon points="95,180 115,205 95,230 75,205" fill="none" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.6" />
+    </g>
+
+    <!-- RIGHT VOLUME: Advanced Strategy (Angled Right) -->
+    <g transform="translate(480, 480) rotate(16)">
+      <!-- Backing Body -->
+      <polygon points="0,0 200,-42 200,390 0,432" fill="url(#obsidianCard)" stroke="#333D52" stroke-width="2" />
+      <!-- Page Block -->
+      <polygon points="200,-42 226,-36 226,396 200,390" fill="url(#pageSilver)" />
+      <!-- Embossed Lines -->
+      <rect x="30" y="50" width="140" height="290" rx="4" fill="none" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.4" />
+      <circle cx="100" cy="180" r="32" fill="none" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.7" />
+      <line x1="45" y1="80" x2="155" y2="58" stroke="#E6A23C" stroke-width="2" stroke-opacity="0.7" />
+    </g>
+
+    <!-- CENTER VOLUME: The Master Edition (Hero Upright Hardcover) -->
+    <g transform="translate(370, 410)">
+      <!-- Spine -->
+      <rect x="0" y="0" width="48" height="460" rx="6" fill="url(#goldSpineGrad)" stroke="#FFF8E7" stroke-width="1" />
+      <!-- Spine Embellishments -->
+      <line x1="8" y1="40" x2="40" y2="40" stroke="#FFF8E7" stroke-width="2.5" />
+      <line x1="8" y1="48" x2="40" y2="48" stroke="#422502" stroke-width="1.5" />
+      <line x1="8" y1="410" x2="40" y2="410" stroke="#FFF8E7" stroke-width="2.5" />
+      <polygon points="24,210 34,226 24,242 14,226" fill="#FFF8E7" />
+
+      <!-- Front Cover (Perspective) -->
+      <polygon points="48,2 250,-42 250,418 48,462" fill="url(#goldPlateLight)" stroke="#FFF8E7" stroke-width="2" />
+      
+      <!-- Gilded Page Edges -->
+      <polygon points="250,-42 278,-36 278,424 250,418" fill="url(#pageSilver)" />
+      <line x1="250" y1="-42" x2="278" y2="-36" stroke="#E6A23C" stroke-width="1.5" />
+
+      <!-- Luxury Geometric Seal on Front Cover -->
+      <polygon points="149,150 200,210 149,270 98,210" fill="none" stroke="#422502" stroke-width="3" />
+      <polygon points="149,165 188,210 149,255 110,210" fill="none" stroke="#FFF8E7" stroke-width="1.5" />
+      <circle cx="149" cy="210" r="18" fill="none" stroke="#422502" stroke-width="2.5" />
+      <circle cx="149" cy="210" r="8" fill="#FFF8E7" />
+
+      <!-- Framing Filigree Lines -->
+      <polygon points="68,26 230,-8 230,396 68,430" fill="none" stroke="#422502" stroke-width="2" opacity="0.65" />
+    </g>
+  </g>
+
+  <!-- Luminous Amber Particles / Ambient Knowledge Dust -->
+  <circle cx="280" cy="420" r="4" fill="#FFF5DB" filter="url(#softRay)" />
+  <circle cx="340" cy="360" r="2.5" fill="#E6A23C" />
+  <circle cx="680" cy="440" r="3.5" fill="#F7D085" />
+  <circle cx="740" cy="380" r="5" fill="#FFF" opacity="0.8" />
+  <circle cx="500" cy="330" r="3" fill="#E6A23C" />
+  <circle cx="430" cy="920" r="3" fill="#E6A23C" opacity="0.7" />
+  <circle cx="590" cy="940" r="2.5" fill="#FFF5DB" />
+</svg>
