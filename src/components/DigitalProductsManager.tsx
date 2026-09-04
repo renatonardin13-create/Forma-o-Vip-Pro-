@@ -108,14 +108,19 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
 
     setUploading(true);
     try {
-      const fileExt = file.name.split('.').pop();
-      // Caminho seguro e padronizado para o bucket privado
-      const fileName = editingProduct.id === 'prod-depois-dos-60-real'
+      // FASE 3.2C: Caminho obrigatório e padronizado para o PDF comercial real
+      const isDepoisDos60 = editingProduct.id === 'prod-depois-dos-60-real' ||
+        file.name.toLowerCase().includes('depois') ||
+        file.name.toLowerCase().includes('cuidado') ||
+        file.name.toLowerCase().includes('idoso') ||
+        file.name.toLowerCase().includes('terceira idade');
+
+      const fileName = isDepoisDos60
         ? 'depois-dos-60-50-cuidados.pdf'
-        : (file.name.toLowerCase().includes('depois') || file.name.toLowerCase().includes('cuidado'))
-          ? 'depois-dos-60-50-cuidados.pdf'
-          : `arquivo_${Date.now()}.${fileExt}`;
-      const filePath = `${editingProduct.id}/${fileName}`;
+        : file.name.replace(/[^a-zA-Z0-9._-]/g, '_');
+      
+      const productId = isDepoisDos60 ? 'prod-depois-dos-60-real' : editingProduct.id;
+      const filePath = `${productId}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
         .from('ebooks')
@@ -126,16 +131,23 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
 
       if (uploadError) throw uploadError;
 
-      setEditingProduct(prev => ({
-        ...prev!,
+      const updatedProduct = {
+        ...editingProduct,
         storagePath: filePath,
         ebook: {
-          ...(prev?.ebook || {}),
-          pageCount: prev?.ebook?.pageCount || 50
+          ...(editingProduct.ebook || {}),
+          pageCount: 50
         }
-      }));
+      };
 
-      showToast('PDF enviado com sucesso para o Storage Privado!');
+      setEditingProduct(updatedProduct);
+      
+      // Auto-persiste no catálogo para evitar perda do path
+      if (editingProduct.title && editingProduct.areaId && editingProduct.type) {
+        saveDigitalProduct(updatedProduct as any);
+      }
+
+      showToast('PDF comercial real enviado e vinculado com sucesso ao Storage Privado!');
     } catch (err: any) {
       console.error('Erro no upload:', err.message);
       alert('Falha ao enviar arquivo: ' + err.message);
@@ -797,18 +809,21 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
                     </label>
                     
                     <div className="flex flex-col sm:flex-row gap-4 items-start sm:items-center bg-[#0D0F12] p-4 rounded-xl border border-dashed border-[#222738]">
-                      <div className="flex-1">
+                      <div className="flex-1 space-y-1">
                         {editingProduct.storagePath ? (
-                          <div className="flex items-center gap-2 text-green-400 text-sm font-medium">
-                            <Check className="w-4 h-4" />
-                            <span>Arquivo vinculado: {editingProduct.storagePath.split('/').pop()}</span>
-                          </div>
+                          <>
+                            <div className="flex items-center gap-2 text-emerald-400 text-sm font-semibold">
+                              <Check className="w-4 h-4" />
+                              <span>Caminho no Storage: <code className="text-xs bg-[#151922] px-2 py-0.5 rounded border border-[#222738] text-amber-300 font-mono">{editingProduct.storagePath}</code></span>
+                            </div>
+                            <p className="text-[11px] text-gray-400">Bucket: <span className="text-white font-medium">ebooks</span> (Privado, Signed URL obrigatória)</p>
+                          </>
                         ) : (
                           <div className="text-gray-500 text-sm">
-                            Nenhum arquivo protegido vinculado. Faça upload para garantir a segurança.
+                            Nenhum arquivo protegido vinculado. Faça upload do PDF comercial real para garantir a segurança.
                           </div>
                         )}
-                        <p className="text-[10px] text-gray-500 mt-1">O arquivo será armazenado em um bucket privado e acessível apenas via Signed URL.</p>
+                        <p className="text-[10px] text-gray-500">O arquivo é armazenado em bucket privado e servido exclusivamente sob autorização via Signed URL.</p>
                       </div>
 
                       <label className={`

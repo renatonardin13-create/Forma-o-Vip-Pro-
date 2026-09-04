@@ -19,6 +19,7 @@ import { useStore } from '../services/store';
 import { Course, DigitalProduct } from '../types';
 import { HeroCarousel } from './HeroCarousel';
 import { ProductSalesModal } from './ProductSalesModal';
+import { EbookReaderModal } from './EbookReaderModal';
 
 interface StudentDashboardProps {
   onOpenCourse: (courseId: string) => void;
@@ -43,6 +44,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
   } = useStore();
 
   const [selectedProductForSale, setSelectedProductForSale] = React.useState<DigitalProduct | null>(null);
+  const [activeEbook, setActiveEbook] = React.useState<DigitalProduct | null>(null);
 
   const handleLockedProductClick = (product: DigitalProduct) => {
     if (product.salesPageUrl) {
@@ -424,7 +426,11 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
                 key={product.id}
                 onClick={() => {
                   if (hasAccess) {
-                    if (product.courseId) onOpenCourse(product.courseId);
+                    if (product.type === 'ebook') {
+                      setActiveEbook(product);
+                    } else if (product.courseId) {
+                      onOpenCourse(product.courseId);
+                    }
                   } else {
                     handleLockedProductClick(product);
                   }
@@ -433,7 +439,7 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
               >
                 <div className="relative aspect-video overflow-hidden">
                   <img 
-                    src={product.thumbnailUrl} 
+                    src={product.thumbnailUrl || product.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80'} 
                     alt={product.title}
                     className={`w-full h-full object-cover transition-transform duration-500 ${hasAccess ? 'group-hover:scale-105' : 'brightness-50 group-hover:scale-110'}`} 
                   />
@@ -548,6 +554,14 @@ export const StudentDashboard: React.FC<StudentDashboardProps> = ({
         <ProductSalesModal 
           product={selectedProductForSale}
           onClose={() => setSelectedProductForSale(null)}
+        />
+      )}
+
+      {/* Ebook Reader Modal */}
+      {activeEbook && (
+        <EbookReaderModal
+          product={activeEbook}
+          onClose={() => setActiveEbook(null)}
         />
       )}
     </div>

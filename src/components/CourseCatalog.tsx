@@ -16,6 +16,7 @@ import {
 import { useStore } from '../services/store';
 import { DigitalProduct } from '../types';
 import { ProductSalesModal } from './ProductSalesModal';
+import { EbookReaderModal } from './EbookReaderModal';
 
 interface CourseCatalogProps {
   mode: 'my-courses' | 'all-courses' | 'favorites' | 'continue-watching';
@@ -41,6 +42,7 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
   const [selectedCategory, setSelectedCategory] = useState<string>('Todos');
   const [selectedStatus, setSelectedStatus] = useState<'all' | 'in_progress' | 'not_started' | 'completed'>('all');
   const [selectedProductForSale, setSelectedProductForSale] = useState<DigitalProduct | null>(null);
+  const [activeEbook, setActiveEbook] = useState<DigitalProduct | null>(null);
 
   const handleLockedProductClick = (product: DigitalProduct) => {
     if (product.salesPageUrl) {
@@ -275,7 +277,11 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                 key={product.id}
                 onClick={() => {
                   if (hasAccess) {
-                    if (product.courseId) onOpenCourse(product.courseId);
+                    if (product.type === 'ebook') {
+                      setActiveEbook(product);
+                    } else if (product.courseId) {
+                      onOpenCourse(product.courseId);
+                    }
                   } else {
                     handleLockedProductClick(product);
                   }
@@ -285,7 +291,7 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                 {/* 16:9 Aspect ratio cover */}
                 <div className="relative aspect-video overflow-hidden">
                   <img 
-                    src={product.thumbnailUrl} 
+                    src={product.thumbnailUrl || product.coverUrl || 'https://images.unsplash.com/photo-1544716278-ca5e3f4abd8c?auto=format&fit=crop&w=800&q=80'} 
                     alt={product.title}
                     className={`w-full h-full object-cover transition-transform duration-500 ${hasAccess ? 'group-hover:scale-105' : 'brightness-50 group-hover:scale-110'}`} 
                   />
@@ -335,11 +341,20 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
                     <div className="px-5 py-2.5 rounded-xl bg-[#D4AF37] text-black font-extrabold text-xs tracking-wider uppercase flex items-center gap-2 shadow-gold-glow-lg transform scale-95 group-hover:scale-100 transition-transform">
                       {hasAccess ? (
                         <>
-                          <Play className="w-4 h-4 fill-current" />
-                          <span>{prog.percentage > 0 ? 'CONTINUAR' : 'ACESSAR AGORA'}</span>
+                          {product.type === 'ebook' ? (
+                            <>
+                              <BookOpen className="w-4 h-4" />
+                              <span>LER E-BOOK ONLINE</span>
+                            </>
+                          ) : (
+                            <>
+                              <Play className="w-4 h-4 fill-current" />
+                              <span>{prog.percentage > 0 ? 'CONTINUAR' : 'ACESSAR AGORA'}</span>
+                            </>
+                          )}
                         </>
                       ) : (
-                        <span>VER OFERTA EXCLUSIVA</span>
+                        <span>VER OFERTA</span>
                       )}
                     </div>
                   </div>
@@ -418,6 +433,14 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
         <ProductSalesModal 
           product={selectedProductForSale}
           onClose={() => setSelectedProductForSale(null)}
+        />
+      )}
+
+      {/* Ebook Reader Modal */}
+      {activeEbook && (
+        <EbookReaderModal
+          product={activeEbook}
+          onClose={() => setActiveEbook(null)}
         />
       )}
     </div>

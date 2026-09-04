@@ -16,7 +16,8 @@ import {
   Ban,
   Unlock,
   CheckCircle2,
-  Package
+  Package,
+  Pencil
 } from 'lucide-react';
 import { useStore } from '../services/store';
 import { UserAreaAccess, User, MemberArea } from '../types';
@@ -28,6 +29,7 @@ export const UserAccessManager: React.FC = () => {
     memberAreas, 
     digitalProducts,
     grantUserAreaAccess, 
+    updateUserAreaAccess,
     revokeUserAreaAccess, 
     blockUserAreaAccess, 
     deleteUserAreaAccess 
@@ -41,6 +43,17 @@ export const UserAccessManager: React.FC = () => {
   const [grantAreaId, setGrantAreaId] = useState<string>('');
   const [grantProductId, setGrantProductId] = useState<string>('');
   const [grantExpiration, setGrantExpiration] = useState<string>('');
+
+  // Estados do Modal de Edição de Acesso
+  const [showEditModal, setShowEditModal] = useState(false);
+  const [editingAccess, setEditingAccess] = useState<UserAreaAccess | null>(null);
+  const [editUserId, setEditUserId] = useState<string>('');
+  const [editAreaId, setEditAreaId] = useState<string>('');
+  const [editProductId, setEditProductId] = useState<string>('');
+  const [editStatus, setEditStatus] = useState<'active' | 'revoked' | 'blocked'>('active');
+  const [editExpiration, setEditExpiration] = useState<string>('');
+  const [editGrantedBy, setEditGrantedBy] = useState<string>('');
+
   const [toastMessage, setToastMessage] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -75,17 +88,51 @@ export const UserAccessManager: React.FC = () => {
     showToast('Acesso concedido com sucesso!');
   };
 
+  const handleOpenEditModal = (acc: UserAreaAccess) => {
+    setEditingAccess(acc);
+    setEditUserId(acc.userId);
+    setEditAreaId(acc.areaId);
+    setEditProductId(acc.productId || '');
+    setEditStatus(acc.status);
+    setEditExpiration(acc.expirationDate || '');
+    setEditGrantedBy(acc.grantedBy || 'Admin via Painel');
+    setShowEditModal(true);
+  };
+
+  const handleEditSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!editingAccess) return;
+    if (!editUserId || !editAreaId) {
+      alert('Selecione o Usuário e a Área de Membros.');
+      return;
+    }
+
+    updateUserAreaAccess(editingAccess.id, {
+      userId: editUserId,
+      areaId: editAreaId,
+      productId: editProductId || undefined,
+      status: editStatus,
+      expirationDate: editExpiration || undefined,
+      grantedBy: editGrantedBy || 'Admin via Painel'
+    });
+
+    setShowEditModal(false);
+    setEditingAccess(null);
+    showToast('Acesso atualizado com sucesso!');
+  };
+
   const filteredAccesses = userAreaAccesses.filter(acc => {
     const user = users.find(u => u.id === acc.userId);
-    const area = memberAreas.find(a => a.id === acc.areaId);
+    const area = memberAreas.find(a => a.id === acc.areaId || a.slug === acc.areaId);
 
     const matchesSearch = 
       user?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
       user?.email.toLowerCase().includes(searchTerm.toLowerCase()) ||
       area?.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      area?.slug.toLowerCase().includes(searchTerm.toLowerCase());
+      area?.slug.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      acc.areaId.toLowerCase().includes(searchTerm.toLowerCase());
 
-    const matchesArea = selectedAreaFilter === 'all' || acc.areaId === selectedAreaFilter;
+    const matchesArea = selectedAreaFilter === 'all' || acc.areaId === selectedAreaFilter || area?.id === selectedAreaFilter;
     const matchesStatus = selectedStatusFilter === 'all' || acc.status === selectedStatusFilter;
 
     return matchesSearch && matchesArea && matchesStatus;
@@ -187,7 +234,7 @@ export const UserAccessManager: React.FC = () => {
             <tbody className="divide-y divide-[#1D2230] text-sm">
               {filteredAccesses.map(acc => {
                 const user = users.find(u => u.id === acc.userId);
-                const area = memberAreas.find(a => a.id === acc.areaId);
+                const area = memberAreas.find(a => a.id === acc.areaId || a.slug === acc.areaId);
                 const product = acc.productId ? digitalProducts.find(p => p.id === acc.productId) : null;
 
                 const isStatusActive = acc.status === 'active';
@@ -216,8 +263,8 @@ export const UserAccessManager: React.FC = () => {
                       <div className="flex items-center gap-2">
                         <Layers className="w-4 h-4 text-[#D4AF37]" />
                         <div>
-                          <div className="font-semibold text-white">{area?.name || 'Área não encontrada'}</div>
-                          <div className="text-xs text-[#D4AF37] font-mono">/{area?.slug}</div>
+                          <div className="font-semibold text-white">{area?.name || (acc.areaId ? `Área (${acc.areaId})` : 'Área não especificada')}</div>
+                          <div className="text-xs text-[#D4AF37] font-mono">/{area?.slug || acc.areaId}</div>
                         </div>
                       </div>
                     </td>
@@ -271,6 +318,16 @@ export const UserAccessManager: React.FC = () => {
                     {/* Ações */}
                     <td className="py-4 px-6 text-right">
                       <div className="flex items-center justify-end gap-1.5">
+                        {/* Botão de Editar Acesso */}
+                        <button
+                          id={`btn-edit-access-${acc.id}`}
+                          onClick={() => handleOpenEditModal(acc)}
+                          title="Editar Acesso"
+                          className="p-1.5 rounded-lg bg-[#151922] hover:bg-[#D4AF37]/20 text-gray-400 hover:text-[#D4AF37] border border-[#222738] hover:border-[#D4AF37]/40 transition-colors"
+                        >
+                          <Pencil className="w-4 h-4" />
+                        </button>
+
                         {isStatusActive ? (
                           <>
                             <button
@@ -281,7 +338,7 @@ export const UserAccessManager: React.FC = () => {
                               <Ban className="w-4 h-4" />
                             </button>
                             <button
-                              onClick={() => { blockUserAreaAccess(acc.id); showToast('Acesso bloqueado.'); }}
+                              onClick={() => { blockUserAreaAccess(acc.id); showToast('Bloquear Acesso'); }}
                               title="Bloquear Acesso"
                               className="p-1.5 rounded-lg bg-[#151922] hover:bg-rose-500/20 text-gray-400 hover:text-rose-400 border border-[#222738] transition-colors"
                             >
@@ -435,6 +492,165 @@ export const UserAccessManager: React.FC = () => {
                   className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black font-bold text-sm hover:opacity-95 shadow-lg"
                 >
                   Confirmar Acesso
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL EDITAR ACESSO */}
+      {showEditModal && editingAccess && (
+        <div className="fixed inset-0 z-50 bg-black/85 backdrop-blur-md flex items-center justify-center p-4">
+          <div className="bg-[#0D0F12] border border-[#D4AF37]/40 rounded-2xl w-full max-w-lg shadow-2xl animate-in zoom-in-95">
+            <div className="p-6 border-b border-[#1D2230] flex items-center justify-between bg-[#08090C] rounded-t-2xl">
+              <div className="flex items-center gap-3">
+                <div className="p-2.5 bg-[#D4AF37]/10 rounded-xl border border-[#D4AF37]/30 text-[#D4AF37]">
+                  <Pencil className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-white">Editar Acesso & Permissão</h3>
+                  <p className="text-xs text-gray-400">Atualize área, produto, status ou prazo de expiração.</p>
+                </div>
+              </div>
+              <button 
+                onClick={() => { setShowEditModal(false); setEditingAccess(null); }} 
+                className="text-gray-400 hover:text-white p-2 rounded-lg hover:bg-[#151922] transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleEditSubmit} className="p-6 space-y-4">
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  Aluno Associado *
+                </label>
+                <select
+                  required
+                  value={editUserId}
+                  onChange={e => setEditUserId(e.target.value)}
+                  className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                >
+                  {users.map(u => (
+                    <option key={u.id} value={u.id}>
+                      {u.name} ({u.email}) - {u.role === 'admin' ? 'ADMIN' : 'ALUNO'}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  Área de Membros *
+                </label>
+                <select
+                  required
+                  value={editAreaId}
+                  onChange={e => {
+                    setEditAreaId(e.target.value);
+                    setEditProductId('');
+                  }}
+                  className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                >
+                  {memberAreas.map(a => (
+                    <option key={a.id} value={a.id}>
+                      {a.name} (/{a.slug})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                  Escopo de Acesso / Produto
+                </label>
+                <select
+                  value={editProductId}
+                  onChange={e => setEditProductId(e.target.value)}
+                  className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                >
+                  <option value="">Toda a Área (Acesso Total)</option>
+                  {digitalProducts
+                    .filter(p => p.areaId === editAreaId)
+                    .map(p => (
+                      <option key={p.id} value={p.id}>
+                        Apenas ao Produto: {p.title} ({p.type})
+                      </option>
+                    ))}
+                </select>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    Status do Acesso *
+                  </label>
+                  <select
+                    value={editStatus}
+                    onChange={e => setEditStatus(e.target.value as any)}
+                    className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                  >
+                    <option value="active">Ativo (Liberado)</option>
+                    <option value="blocked">Bloqueado (Suspenso)</option>
+                    <option value="revoked">Revogado (Cancelado)</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-semibold text-gray-300 mb-1.5">
+                    Origem / Concedido por
+                  </label>
+                  <input
+                    type="text"
+                    value={editGrantedBy}
+                    onChange={e => setEditGrantedBy(e.target.value)}
+                    placeholder="Ex: Admin via Painel"
+                    className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="flex items-center justify-between mb-1.5">
+                  <label className="block text-xs font-semibold text-gray-300">
+                    Data de Expiração
+                  </label>
+                  {editExpiration && (
+                    <button
+                      type="button"
+                      onClick={() => setEditExpiration('')}
+                      className="text-[11px] text-[#D4AF37] hover:underline"
+                    >
+                      Tornar Vitalício
+                    </button>
+                  )}
+                </div>
+                <input
+                  type="date"
+                  value={editExpiration}
+                  onChange={e => setEditExpiration(e.target.value)}
+                  className="w-full bg-[#151922] border border-[#222738] rounded-xl px-4 py-2.5 text-sm text-white focus:outline-none focus:border-[#D4AF37]"
+                />
+                <p className="text-[11px] text-gray-500 mt-1">
+                  {editExpiration ? 'O acesso será encerrado automaticamente após esta data.' : 'Deixe vazio para conceder acesso vitalício sem expiração.'}
+                </p>
+              </div>
+
+              <div className="pt-4 border-t border-[#1D2230] flex items-center justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => { setShowEditModal(false); setEditingAccess(null); }}
+                  className="px-4 py-2.5 rounded-xl bg-[#151922] hover:bg-[#1D2230] text-gray-300 text-sm font-semibold border border-[#222738] transition"
+                >
+                  Cancelar
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#F5D76E] text-black font-bold text-sm hover:opacity-95 shadow-lg shadow-[#D4AF37]/20 flex items-center gap-2"
+                >
+                  <Check className="w-4 h-4 stroke-[2.5]" />
+                  Salvar Alterações
                 </button>
               </div>
             </form>

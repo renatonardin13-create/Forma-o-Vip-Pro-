@@ -151,6 +151,13 @@ class StoreManager {
     this.webhookLogs = loadStorage<WebhookLogRecord[]>(STORAGE_KEYS.WEBHOOK_LOGS, INITIAL_WEBHOOK_LOGS);
     this.progressoAulas = loadStorage<Record<string, AulaProgressRecord>>(STORAGE_KEYS.PROGRESSO_AULAS, {});
     this.memberAreas = loadStorage<MemberArea[]>(STORAGE_KEYS.MEMBER_AREAS, INITIAL_MEMBER_AREAS);
+    // Garantir sincronização das áreas de membros padrão
+    INITIAL_MEMBER_AREAS.forEach(initArea => {
+      const idx = this.memberAreas.findIndex(a => a.id === initArea.id);
+      if (idx === -1) {
+        this.memberAreas.push(initArea);
+      }
+    });
     this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);
     // Garantir sincronização com produtos reais configurados em INITIAL_DIGITAL_PRODUCTS
     INITIAL_DIGITAL_PRODUCTS.forEach(initProd => {
@@ -389,11 +396,18 @@ class StoreManager {
           checkoutUrl: item.checkout_url || undefined
         }));
 
-        this.digitalProducts = mappedProducts;
+        // FASE 3.2B: Supabase tem prioridade absoluta por ID, mantendo mocks restantes sem remoção
+        const combined = [...mappedProducts];
+        for (const mockP of INITIAL_DIGITAL_PRODUCTS) {
+          if (!combined.some(p => p.id === mockP.id)) {
+            combined.push(mockP);
+          }
+        }
+        this.digitalProducts = combined;
         // Salva no cache do localStorage (cache de leitura)
         saveStorage(STORAGE_KEYS.DIGITAL_PRODUCTS, this.digitalProducts);
         this.notify();
-        console.log(`[Store] Sucesso: ${mappedProducts.length} produtos carregados do Supabase.`);
+        console.log(`[Store] Sucesso: ${mappedProducts.length} produtos carregados do Supabase (total sincronizado: ${combined.length}).`);
       } else {
         console.log('[Store] Supabase retornou lista vazia de produtos. Mantendo Fallback.');
       }
@@ -1839,6 +1853,22 @@ class StoreManager {
     return true;
   }
 
+  public updateUserAreaAccess(id: string, updates: Partial<UserAreaAccess>): UserAreaAccess | null {
+    const idx = this.userAreaAccesses.findIndex(a => a.id === id);
+    if (idx === -1) return null;
+
+    const updated: UserAreaAccess = {
+      ...this.userAreaAccesses[idx],
+      ...updates,
+      updatedAt: new Date().toISOString().split('T')[0]
+    };
+
+    this.userAreaAccesses[idx] = updated;
+    saveStorage(STORAGE_KEYS.USER_AREA_ACCESSES, this.userAreaAccesses);
+    this.notify();
+    return updated;
+  }
+
   // ==========================================
   // MÓDULO: HERO CAROUSEL PREMIUM BANNERS
   // ==========================================
@@ -1992,6 +2022,7 @@ export function useStore() {
     isSupabaseEnabled: isSupabaseConfigured(),
     grantUserAreaAccess: (data: { userId: string; areaId: string; productId?: string; expirationDate?: string; grantedBy?: string }) => 
       store.grantUserAreaAccess(data),
+    updateUserAreaAccess: (id: string, updates: Partial<UserAreaAccess>) => store.updateUserAreaAccess(id, updates),
     revokeUserAreaAccess: (id: string) => store.revokeUserAreaAccess(id),
     blockUserAreaAccess: (id: string) => store.blockUserAreaAccess(id),
     deleteUserAreaAccess: (id: string) => store.deleteUserAreaAccess(id),
