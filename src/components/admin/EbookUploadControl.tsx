@@ -130,6 +130,18 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
     setErrorMessage(null);
 
     try {
+      // Diagnóstico Forense: Validar sessão antes do upload (Fase 3.5)
+      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      
+      if (sessionError) {
+        throw new Error(`Erro de autenticação: ${sessionError.message}`);
+      }
+      
+      if (!session) {
+        // Exatamente como solicitado na regra
+        throw new Error('Sua sessão expirou. Faça login novamente.');
+      }
+      
       const { error: uploadError } = await supabase.storage
         .from(EBOOK_UPLOAD_CONFIG.BUCKET_NAME)
         .upload(targetPath, selectedFile, {
@@ -139,7 +151,16 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
         });
 
       if (uploadError) {
-        throw new Error(uploadError.message || 'Falha ao enviar arquivo para o Storage.');
+        // Diagnóstico Forense (Obrigatório pela Fase 3.5)
+        const forensicErrorMsg = `[Supabase Storage Diagnostic] Ocorreu uma falha física de upload no Supabase Storage.
+Status/Type: ${uploadError.name}
+Mensagem Técnica Original do Supabase: "${uploadError.message}"
+Operação: UPLOAD_INSERT (upsert: true)
+Bucket: ${EBOOK_UPLOAD_CONFIG.BUCKET_NAME}
+Path: ${targetPath}
+Isso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucket) ou, MAIS PROVÁVEL, quando as Políticas de Segurança (RLS) rejeitam a gravação (ex: "new row violates row-level security policy for table objects"). Verifique se seu usuário tem privilégio real de 'admin' na tabela public.perfis no Supabase.`;
+        console.error(forensicErrorMsg);
+        throw new Error(`Erro do Supabase: ${uploadError.message}. Consulte o console para diagnóstico completo.`);
       }
 
       // Sucesso
@@ -287,7 +308,7 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
       )}
 
       {/* ESTADO: VALIDATING */}
-      {uploadState === 'VALIDATING' && (
+      {uploadState === 'VALIDATING' && !validationResult?.valid && (
         <div className="bg-[#0D0F12] p-5 rounded-xl border border-blue-500/30 flex items-center gap-4">
           <Loader2 className="w-6 h-6 text-blue-400 animate-spin shrink-0" />
           <div className="space-y-0.5">

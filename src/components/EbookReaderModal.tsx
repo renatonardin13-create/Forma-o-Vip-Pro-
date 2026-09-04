@@ -92,7 +92,19 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         }
       }
 
-      // 2. Se houver pdfUrl direta configurada
+      // REGRA FASE 3.5: Para o produto real, o fluxo oficial DEVE ser Storage privado.
+      // Se não houver storage_path, não podemos aceitar o link externo como substituto.
+      if (product.id === 'prod-depois-dos-60-real' && !product.storagePath) {
+        if (isMounted) {
+          // Mantemos em null para forçar o fallback de segurança / leitor vazio
+          setSignedUrl(null);
+          setViewMode('reader');
+          setFetchingUrl(false);
+        }
+        return;
+      }
+
+      // 2. Se houver pdfUrl direta configurada (Apenas para legado/demo de outros produtos)
       if (product.ebook?.pdfUrl && isMounted) {
         setSignedUrl(product.ebook.pdfUrl);
         setViewMode('pdf');
@@ -492,16 +504,13 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
               
               {/* Notificação discreta se for produto em sincronização */}
               {product.id === 'prod-depois-dos-60-real' && !signedUrl && (
-                <div className="mb-4 px-4 py-2.5 rounded-xl bg-[#D4AF37]/10 border border-[#D4AF37]/25 flex items-center justify-between text-xs">
+                <div className="mb-4 px-4 py-2.5 rounded-xl bg-rose-500/10 border border-rose-500/25 flex items-center justify-between text-xs">
                   <div className="flex items-center gap-2 text-gray-300">
-                    <Sparkles className="w-4 h-4 text-[#D4AF37] shrink-0" />
+                    <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
                     <span>
-                      <strong className="text-white">Leitor Digital Homologado:</strong> Conteúdo oficial disponível para leitura imediata.
+                      <strong className="text-white">Atenção:</strong> Este e-book ainda não foi enviado para o armazenamento privado.
                     </span>
                   </div>
-                  <span className="text-[10px] text-[#D4AF37] font-semibold bg-[#D4AF37]/15 px-2 py-0.5 rounded">
-                    50 Cuidados
-                  </span>
                 </div>
               )}
 
