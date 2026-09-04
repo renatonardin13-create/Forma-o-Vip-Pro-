@@ -46,6 +46,7 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
   const [targetPath, setTargetPath] = useState<string>('');
   const [fileExistsInStorage, setFileExistsInStorage] = useState(false);
   const [showOverwriteConfirm, setShowOverwriteConfirm] = useState(false);
+  const [uploadProgress, setUploadProgress] = useState<number>(0);
   const [uploadSuccessData, setUploadSuccessData] = useState<{
     productTitle: string;
     fileName: string;
@@ -128,6 +129,17 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
 
     setUploadState('UPLOADING');
     setErrorMessage(null);
+    setUploadProgress(0);
+
+    // Simulação de progresso para melhorar UX em uploads de arquivos grandes
+    const progressInterval = setInterval(() => {
+      setUploadProgress(prev => {
+        if (prev >= 95) return 95; // Fica em 95% até finalizar
+        // Aumenta rapidamente no começo e mais devagar depois
+        const increment = prev < 50 ? 5 : prev < 80 ? 2 : 1;
+        return prev + increment;
+      });
+    }, 500);
 
     try {
       // Diagnóstico Forense: Validar sessão antes do upload (Fase 3.5)
@@ -150,6 +162,8 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
           contentType: 'application/pdf'
         });
 
+      clearInterval(progressInterval);
+
       if (uploadError) {
         // Diagnóstico Forense (Obrigatório pela Fase 3.5)
         const forensicErrorMsg = `[Supabase Storage Diagnostic] Ocorreu uma falha física de upload no Supabase Storage.
@@ -164,6 +178,7 @@ Isso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucke
       }
 
       // Sucesso
+      setUploadProgress(100);
       const fileName = targetPath.split('/').pop() || 'documento.pdf';
       const pageCount = productId === 'prod-depois-dos-60-real' ? 50 : undefined;
 
@@ -177,6 +192,7 @@ Isso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucke
       setUploadState('SUCCESS');
       onStoragePathUpdated(targetPath, pageCount);
     } catch (err: any) {
+      clearInterval(progressInterval);
       console.error('[EbookUpload] Falha:', err);
       setUploadState('ERROR');
       setErrorMessage(err?.message || 'Não foi possível concluir o upload. Verifique sua conexão e tente novamente.');
@@ -378,18 +394,24 @@ Isso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucke
       {/* ESTADO: UPLOADING */}
       {uploadState === 'UPLOADING' && (
         <div className="bg-[#0D0F12] p-5 rounded-xl border border-amber-500/40 space-y-3">
-          <div className="flex items-center gap-3">
-            <Loader2 className="w-5 h-5 text-amber-400 animate-spin shrink-0" />
-            <div>
-              <h5 className="text-sm font-semibold text-white">Enviando PDF para o Bucket Privado...</h5>
-              <p className="text-xs text-gray-400">Gravando de forma segura em <code className="text-amber-300 font-mono text-[11px]">{targetPath}</code></p>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <Loader2 className="w-5 h-5 text-amber-400 animate-spin shrink-0" />
+              <div>
+                <h5 className="text-sm font-semibold text-white">Enviando PDF para o Bucket Privado...</h5>
+                <p className="text-xs text-gray-400">Gravando de forma segura em <code className="text-amber-300 font-mono text-[11px]">{targetPath}</code></p>
+              </div>
             </div>
+            <span className="text-amber-400 font-mono text-sm font-bold">{uploadProgress}%</span>
           </div>
           <div className="w-full bg-[#1A202C] h-1.5 rounded-full overflow-hidden">
-            <div className="bg-amber-500 h-full w-2/3 animate-pulse"></div>
+            <div 
+              className="bg-amber-500 h-full transition-all duration-300 ease-out"
+              style={{ width: `${uploadProgress}%` }}
+            ></div>
           </div>
           <p className="text-[10px] text-gray-500">
-            Ação protegida: Prevenção contra duplo clique ativada. Não feche esta janela durante a gravação.
+            Ação protegida: Prevenção contra duplo clique ativada. Não feche esta janela durante a gravação. Arquivos grandes podem levar alguns minutos.
           </p>
         </div>
       )}
