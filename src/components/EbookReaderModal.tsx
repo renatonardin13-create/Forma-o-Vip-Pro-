@@ -276,7 +276,63 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
     );
   }
 
-  // 3. LEITOR COMPLETO
+  // 2.5. FLUXO EXCLUSIVO DO PRODUTO REAL (FLIPBOOK ONLY)
+  if (product.id === 'prod-depois-dos-60-real') {
+    return (
+      <div className="fixed inset-0 z-50 bg-[#060709] flex flex-col animate-in fade-in select-none">
+        {/* HEADER SUPERIOR */}
+        <header className="h-16 px-4 sm:px-6 bg-[#0B0D12] border-b border-[#1A1F2C] flex items-center justify-between z-30 shrink-0">
+          <div className="flex items-center gap-3 min-w-0 pr-4">
+            <div className="w-10 h-10 rounded-xl bg-gradient-to-br from-[#D4AF37]/20 to-[#D4AF37]/5 border border-[#D4AF37]/30 flex items-center justify-center shrink-0 shadow-sm">
+              <BookOpen className="w-5 h-5 text-[#D4AF37]" />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-2">
+                <span className="px-2 py-0.5 rounded bg-[#D4AF37]/15 text-[#D4AF37] font-bold text-[9px] uppercase tracking-wider">
+                  E-book Seguro
+                </span>
+              </div>
+              <h1 className="text-white font-bold text-xs sm:text-sm truncate max-w-[260px] sm:max-w-md md:max-w-xl">
+                {product.title}
+              </h1>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+            <button
+              onClick={toggleFullscreen}
+              className="p-2 rounded-xl border border-transparent hover:border-[#202738] hover:bg-[#121620] text-gray-400 hover:text-white transition"
+              title="Tela Cheia"
+            >
+              {isFullscreen ? <Minimize2 className="w-4 h-4" /> : <Maximize2 className="w-4 h-4" />}
+            </button>
+            <button
+              onClick={handleClose}
+              className="p-2 rounded-xl bg-rose-500/10 text-rose-500 hover:bg-rose-500 hover:text-white transition"
+              title="Fechar Leitor"
+            >
+              <X className="w-4 h-4" />
+            </button>
+          </div>
+        </header>
+
+        <main className="flex-1 bg-[#060709] flex flex-col relative overflow-hidden">
+          {!signedUrl ? (
+            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center bg-[#1E232E]">
+              <AlertCircle className="w-12 h-12 mb-4 text-rose-500/50" />
+              <h2 className="text-xl font-bold text-gray-200">Este e-book ainda não está disponível para leitura.</h2>
+              <p className="text-sm mt-2 text-gray-400">O conteúdo está sendo preparado e sincronizado no servidor seguro.</p>
+            </div>
+          ) : (
+            <div className="flex-1 w-full h-full relative flex flex-col items-center justify-center">
+              <PdfViewer url={signedUrl} />
+            </div>
+          )}
+        </main>
+      </div>
+    );
+  }
+
+  // 3. LEITOR COMPLETO (PRODUTOS LEGADOS)
   return (
     <div className="fixed inset-0 z-50 bg-[#060709] flex flex-col animate-in fade-in select-none">
       
@@ -305,7 +361,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           
           {/* Alternador de Modo (se houver PDF carregado, escondido para o produto real) */}
-          {signedUrl && product.id !== 'prod-depois-dos-60-real' && (
+          {signedUrl && (
             <div className="hidden md:flex items-center bg-[#121620] border border-[#202738] rounded-xl p-1">
               <button
                 onClick={() => setViewMode('reader')}
@@ -463,7 +519,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         <main className="flex-1 overflow-y-auto bg-[#060709] flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 custom-scrollbar">
           
           {/* MODO 1: VISUALIZADOR DE PDF COM EFEITO FLIP (OU PRODUTO REAL) */}
-          {(viewMode === 'pdf' || product.id === 'prod-depois-dos-60-real') ? (
+          {viewMode === 'pdf' ? (
             <div className="w-full max-w-5xl h-[85vh] flex flex-col bg-[#0D0F14] rounded-2xl border border-[#1C2230] overflow-hidden shadow-2xl relative">
               
               {/* Barra de controle interna do PDF (Simplificada) */}
@@ -471,33 +527,23 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
                 <div className="flex items-center gap-2 text-gray-300">
                   <div className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
                   <span className="font-semibold text-[11px] text-gray-200">
-                    {product.id === 'prod-depois-dos-60-real' ? 'Leitor VIP Seguro' : 'E-book Seguro Conectado'}
+                    E-book Seguro Conectado
                   </span>
                 </div>
                 <div className="flex items-center gap-2">
-                  {product.id !== 'prod-depois-dos-60-real' && (
                   <button
                     onClick={() => setViewMode('reader')}
                     className="px-2.5 py-1 rounded bg-[#1A2130] hover:bg-[#222B3E] text-gray-300 hover:text-white text-[11px] font-medium transition"
                   >
                     Alternar para Leitor VIP
                   </button>
-                  )}
                   {/* Botão de Nova Janela (Download) foi intencionalmente removido para proteção do conteúdo */}
                 </div>
               </div>
 
               {/* Componente PDF com Efeito Flip */}
               <div className="flex-1 relative bg-[#1E232E] overflow-hidden flex items-center justify-center">
-                {product.id === 'prod-depois-dos-60-real' && !signedUrl ? (
-                  <div className="text-gray-400 text-center flex flex-col items-center p-8">
-                    <AlertCircle className="w-10 h-10 mb-3 text-rose-500/50" />
-                    <p className="font-medium text-lg">Este e-book ainda não está disponível para leitura.</p>
-                    <p className="text-sm mt-2 opacity-70">O conteúdo está sendo preparado e sincronizado no servidor seguro.</p>
-                  </div>
-                ) : (
-                  <PdfViewer url={signedUrl || ''} />
-                )}
+                <PdfViewer url={signedUrl || ''} />
               </div>
             </div>
           ) : (
