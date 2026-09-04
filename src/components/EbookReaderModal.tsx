@@ -77,6 +77,16 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
 
       setFetchingUrl(true);
 
+      // 0. Se o arquivo foi subido em modo Local/Memória (URL começa com blob:)
+      if (product.storagePath?.startsWith('blob:')) {
+        if (isMounted) {
+          setSignedUrl(product.storagePath);
+          setViewMode('pdf');
+          setFetchingUrl(false);
+        }
+        return;
+      }
+
       // 1. Se houver storagePath e Supabase configurado, busca Signed URL
       if (product.storagePath && isSupabaseEnabled) {
         try {
@@ -509,6 +519,18 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
                     <AlertCircle className="w-4 h-4 text-rose-500 shrink-0" />
                     <span>
                       <strong className="text-white">Atenção:</strong> Este e-book ainda não foi enviado para o armazenamento privado.
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {/* Notificação de Modo Local */}
+              {signedUrl?.startsWith('blob:') && (
+                <div className="mb-4 px-4 py-2.5 rounded-xl bg-blue-500/10 border border-blue-500/25 flex items-center justify-between text-xs">
+                  <div className="flex items-center gap-2 text-gray-300">
+                    <AlertCircle className="w-4 h-4 text-blue-400 shrink-0" />
+                    <span>
+                      <strong className="text-white">Modo Demo Local:</strong> O PDF está rodando diretamente da memória do navegador. (O e-book sumirá se a página for atualizada).
                     </span>
                   </div>
                 </div>
