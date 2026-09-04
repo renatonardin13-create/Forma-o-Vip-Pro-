@@ -125,16 +125,6 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
     setErrorMessage(null);
     setUploadProgress(0);
 
-    // Simulação de progresso para melhorar UX em uploads de arquivos grandes
-    const progressInterval = setInterval(() => {
-      setUploadProgress(prev => {
-        if (prev >= 95) return 95; // Fica em 95% até finalizar
-        // Aumenta rapidamente no começo e mais devagar depois
-        const increment = prev < 50 ? 5 : prev < 80 ? 2 : 1;
-        return prev + increment;
-      });
-    }, 500);
-
     try {
       // Diagnóstico Forense: Validar sessão antes do upload (Fase 3.5)
       const { data: { session }, error: sessionError } = await supabase.auth.getSession();
@@ -143,7 +133,6 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
       // Isso resolve a demora ("demorando demais") e o erro de RLS, permitindo
       // que o administrador suba "o próprio arquivo" e teste o leitor imediatamente.
       if (sessionError || !session || !isSupabaseConfigured()) {
-        clearInterval(progressInterval);
         setUploadProgress(100);
         
         // Criamos um ObjectURL local com o próprio arquivo do usuário
@@ -170,10 +159,13 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
         .upload(targetPath, selectedFile, {
           upsert: true,
           cacheControl: '3600',
-          contentType: 'application/pdf'
+          contentType: 'application/pdf',
+          // @ts-ignore - utilizando o callback onUploadProgress suportado por algumas versões do SDK
+          onUploadProgress: (progress: any) => {
+            const percent = Math.round((progress.loaded / progress.total) * 100);
+            setUploadProgress(percent);
+          }
         });
-
-      clearInterval(progressInterval);
 
       if (uploadError) {
         // Diagnóstico Forense (Obrigatório pela Fase 3.5)
@@ -203,7 +195,6 @@ Isso normalmente ocorre quando o arquivo é grande demais (ex: > limite do bucke
       setUploadState('SUCCESS');
       onStoragePathUpdated(targetPath, pageCount);
     } catch (err: any) {
-      clearInterval(progressInterval);
       console.error('[EbookUpload] Falha:', err);
       setUploadState('ERROR');
       setErrorMessage(err?.message || 'Não foi possível concluir o upload. Verifique sua conexão e tente novamente.');
