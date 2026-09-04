@@ -127,10 +127,14 @@ export const EbookUploadControl: React.FC<EbookUploadControlProps> = ({
 
     try {
       // Diagnóstico Forense: Validar sessão antes do upload
-      const { data: { session }, error: sessionError } = await supabase.auth.getSession();
+      const { data: { session } } = await supabase.auth.getSession();
       
-      if (sessionError || !session || !isSupabaseConfigured()) {
-        throw new Error('Não há sessão autenticada ou o Supabase não está configurado. O upload foi bloqueado para garantir armazenamento físico definitivo.');
+      if (!isSupabaseConfigured()) {
+        throw new Error('O Supabase não está configurado. Verifique as variáveis de ambiente.');
+      }
+
+      if (!session) {
+        console.warn('Aviso: Nenhuma sessão Supabase Auth detectada. A tentativa de upload usará o acesso e dependerá exclusivamente das políticas (RLS) do bucket.');
       }
       
       // Fluxo Oficial: Upload para o Supabase Storage
