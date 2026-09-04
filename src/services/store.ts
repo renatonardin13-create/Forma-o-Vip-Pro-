@@ -152,6 +152,15 @@ class StoreManager {
     this.progressoAulas = loadStorage<Record<string, AulaProgressRecord>>(STORAGE_KEYS.PROGRESSO_AULAS, {});
     this.memberAreas = loadStorage<MemberArea[]>(STORAGE_KEYS.MEMBER_AREAS, INITIAL_MEMBER_AREAS);
     this.digitalProducts = loadStorage<DigitalProduct[]>(STORAGE_KEYS.DIGITAL_PRODUCTS, INITIAL_DIGITAL_PRODUCTS);
+    // Garantir sincronização com produtos reais configurados em INITIAL_DIGITAL_PRODUCTS
+    INITIAL_DIGITAL_PRODUCTS.forEach(initProd => {
+      const idx = this.digitalProducts.findIndex(p => p.id === initProd.id);
+      if (idx === -1) {
+        this.digitalProducts.push(initProd);
+      } else if (initProd.id === 'prod-depois-dos-60-real') {
+        this.digitalProducts[idx] = { ...this.digitalProducts[idx], ...initProd };
+      }
+    });
     this.userAreaAccesses = loadStorage<UserAreaAccess[]>(STORAGE_KEYS.USER_AREA_ACCESSES, INITIAL_USER_AREA_ACCESSES);
     this.heroBanners = loadStorage<HeroBanner[]>(STORAGE_KEYS.HERO_BANNERS, INITIAL_HERO_BANNERS);
     this.salesTransactions = loadStorage<SalesTransaction[]>(STORAGE_KEYS.SALES_TRANSACTIONS, INITIAL_SALES_TRANSACTIONS);

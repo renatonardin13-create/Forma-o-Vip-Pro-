@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { 
   X, 
   BookOpen, 
-  Download, 
   ChevronLeft, 
   ChevronRight, 
   Lock,
@@ -32,9 +31,17 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
   // Carrega a Signed URL se o usuário tiver acesso
   useEffect(() => {
     async function loadSecureUrl() {
-      if (!accessesLoaded || !canAccess) return;
-      // Se não tem storagePath nem pdfUrl, não há o que carregar
-      if (!product.storagePath && !product.ebook?.pdfUrl) return;
+      if (!accessesLoaded) return;
+      if (!currentUser || !canAccess) {
+        setSignedUrl(null);
+        return;
+      }
+
+      // Se não tem storagePath nem pdfUrl
+      if (!product.storagePath && !product.ebook?.pdfUrl) {
+        setError('Este e-book ainda não possui arquivo configurado no Storage.');
+        return;
+      }
 
       setFetchingUrl(true);
       setError(null);
@@ -57,7 +64,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
     }
 
     loadSecureUrl();
-  }, [product.id, product.storagePath, product.ebook?.pdfUrl, canAccess, accessesLoaded, getEbookSignedUrl]);
+  }, [product.id, product.storagePath, product.ebook?.pdfUrl, canAccess, accessesLoaded, currentUser, getEbookSignedUrl]);
 
   const handleNextPage = () => {
     if (currentPage < totalPages) setCurrentPage(p => p + 1);

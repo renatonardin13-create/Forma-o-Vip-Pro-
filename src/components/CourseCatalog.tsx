@@ -43,10 +43,12 @@ export const CourseCatalog: React.FC<CourseCatalogProps> = ({
   const [selectedProductForSale, setSelectedProductForSale] = useState<DigitalProduct | null>(null);
 
   const handleLockedProductClick = (product: DigitalProduct) => {
-    if (product.salesStrategy === 'sales_page' && product.salesPageUrl) {
-      window.open(product.salesPageUrl, '_blank');
+    if (product.salesPageUrl) {
+      window.open(product.salesPageUrl, '_blank', 'noopener,noreferrer');
     } else if (product.salesStrategy === 'presell' && product.presellUrl) {
-      window.open(product.presellUrl, '_blank');
+      window.open(product.presellUrl, '_blank', 'noopener,noreferrer');
+    } else if (product.checkoutUrl) {
+      window.open(product.checkoutUrl, '_blank', 'noopener,noreferrer');
     } else {
       setSelectedProductForSale(product);
     }

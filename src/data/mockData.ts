@@ -1283,6 +1283,8 @@ export const INITIAL_DIGITAL_PRODUCTS: DigitalProduct[] = [
     status: 'published',
     order: 10,
     publishedAt: '2025-01-01',
+    salesStrategy: 'sales_page',
+    salesPageUrl: 'https://depois-dos-60.vercel.app/',
     ebook: {
       pageCount: 50,
       fileFormat: 'PDF',

@@ -109,8 +109,12 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
     setUploading(true);
     try {
       const fileExt = file.name.split('.').pop();
-      // Nome determinístico: arquivo.pdf dentro da pasta do produto
-      const fileName = `arquivo_${Date.now()}.${fileExt}`;
+      // Caminho seguro e padronizado para o bucket privado
+      const fileName = editingProduct.id === 'prod-depois-dos-60-real'
+        ? 'depois-dos-60-50-cuidados.pdf'
+        : (file.name.toLowerCase().includes('depois') || file.name.toLowerCase().includes('cuidado'))
+          ? 'depois-dos-60-50-cuidados.pdf'
+          : `arquivo_${Date.now()}.${fileExt}`;
       const filePath = `${editingProduct.id}/${fileName}`;
 
       const { error: uploadError } = await supabase.storage
@@ -124,7 +128,11 @@ export const DigitalProductsManager: React.FC<DigitalProductsManagerProps> = ({
 
       setEditingProduct(prev => ({
         ...prev!,
-        storagePath: filePath
+        storagePath: filePath,
+        ebook: {
+          ...(prev?.ebook || {}),
+          pageCount: prev?.ebook?.pageCount || 50
+        }
       }));
 
       showToast('PDF enviado com sucesso para o Storage Privado!');
