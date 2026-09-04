@@ -68,8 +68,11 @@ export function generateEbookStoragePath(productId: string, originalFileName: st
     return 'prod-depois-dos-60-real/depois-dos-60-50-cuidados.pdf';
   }
 
+  // Extrai estritamente o nome base do arquivo, descartando qualquer árvore de diretório
+  const baseFileName = originalFileName.split(/[/\\]/).filter(Boolean).pop() || 'ebook-document.pdf';
+
   // Sanitização determinística do nome do arquivo para futuros produtos
-  const nameWithoutExt = originalFileName
+  const nameWithoutExt = baseFileName
     .replace(/\.[^/.]+$/, '')
     .replace(/\.\./g, '')
     .replace(/[/\\]/g, '')
