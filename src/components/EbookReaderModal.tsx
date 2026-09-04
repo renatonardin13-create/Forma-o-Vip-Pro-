@@ -462,8 +462,8 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         {/* CONTAINER DO LEITOR */}
         <main className="flex-1 overflow-y-auto bg-[#060709] flex flex-col items-center justify-start p-3 sm:p-6 lg:p-8 custom-scrollbar">
           
-          {/* MODO 1: VISUALIZADOR DE PDF COM EFEITO FLIP */}
-          {viewMode === 'pdf' && signedUrl ? (
+          {/* MODO 1: VISUALIZADOR DE PDF COM EFEITO FLIP (OU PRODUTO REAL) */}
+          {(viewMode === 'pdf' || product.id === 'prod-depois-dos-60-real') ? (
             <div className="w-full max-w-5xl h-[85vh] flex flex-col bg-[#0D0F14] rounded-2xl border border-[#1C2230] overflow-hidden shadow-2xl relative">
               
               {/* Barra de controle interna do PDF (Simplificada) */}
