@@ -103,13 +103,12 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         }
       }
 
-      // REGRA FASE 3.5: Para o produto real, o fluxo oficial DEVE ser Storage privado.
-      // Se não houver storage_path, não podemos aceitar o link externo como substituto.
+      // REGRA FASE 3.7: Para o produto real, o fluxo oficial DEVE ser Storage privado (Signed URL -> Flipbook).
+      // Se não houver storage_path, forçamos um estado de "indisponível".
       if (product.id === 'prod-depois-dos-60-real' && !product.storagePath) {
         if (isMounted) {
-          // Mantemos em null para forçar o fallback de segurança / leitor vazio
           setSignedUrl(null);
-          setViewMode('reader');
+          setViewMode('pdf'); // Set viewMode to PDF so it renders the PdfViewer wrapper
           setFetchingUrl(false);
         }
         return;
@@ -159,20 +158,24 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         handlePrevPage();
       } else if (e.key === 'Escape') {
         if (showToc) setShowToc(false);
-        else onClose();
+        else handleClose();
       }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [handleNextPage, handlePrevPage, showToc, onClose]);
 
-  // Toggle bookmark
   const toggleBookmark = () => {
     if (bookmarkedPage === currentPage) {
       setBookmarkedPage(null);
     } else {
       setBookmarkedPage(currentPage);
     }
+  };
+
+  const handleClose = () => {
+    setSignedUrl(null);
+    onClose();
   };
 
   // Fullscreen toggle
@@ -240,7 +243,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
 
           <div className="flex flex-col gap-3">
             <button
-              onClick={onClose}
+              onClick={handleClose}
               className="w-full py-3.5 px-6 rounded-xl bg-[#151922] text-white font-bold hover:bg-[#1D2230] transition border border-[#1D2230] text-xs"
             >
               Voltar para a Área de Membros
@@ -283,8 +286,8 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
         {/* Centro / Direita: Ferramentas de Leitura & Controles */}
         <div className="flex items-center gap-2 sm:gap-3 shrink-0">
           
-          {/* Alternador de Modo (se houver PDF carregado) */}
-          {signedUrl && (
+          {/* Alternador de Modo (se houver PDF carregado, escondido para o produto real) */}
+          {signedUrl && product.id !== 'prod-depois-dos-60-real' && (
             <div className="hidden md:flex items-center bg-[#121620] border border-[#202738] rounded-xl p-1">
               <button
                 onClick={() => setViewMode('reader')}
@@ -369,7 +372,7 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
 
           {/* Fechar Modal */}
           <button
-            onClick={onClose}
+            onClick={handleClose}
             title="Fechar Visualizador"
             className="p-2 rounded-xl bg-rose-500/10 hover:bg-rose-500/20 text-rose-400 border border-rose-500/20 hover:border-rose-500/40 transition"
           >
@@ -452,19 +455,29 @@ export const EbookReaderModal: React.FC<EbookReaderModalProps> = ({ product, onC
                   <span className="font-semibold text-[11px] text-gray-200">E-book Seguro Conectado (Download Protegido)</span>
                 </div>
                 <div className="flex items-center gap-2">
+                  {product.id !== 'prod-depois-dos-60-real' && (
                   <button
                     onClick={() => setViewMode('reader')}
                     className="px-2.5 py-1 rounded bg-[#1A2130] hover:bg-[#222B3E] text-gray-300 hover:text-white text-[11px] font-medium transition"
                   >
                     Alternar para Leitor VIP
                   </button>
+                  )}
                   {/* Botão de Nova Janela (Download) foi intencionalmente removido para proteção do conteúdo */}
                 </div>
               </div>
 
               {/* Componente PDF com Efeito Flip */}
-              <div className="flex-1 relative bg-[#1E232E] overflow-hidden">
-                <PdfViewer url={signedUrl} />
+              <div className="flex-1 relative bg-[#1E232E] overflow-hidden flex items-center justify-center">
+                {product.id === 'prod-depois-dos-60-real' && !signedUrl ? (
+                  <div className="text-gray-400 text-center flex flex-col items-center p-8">
+                    <AlertCircle className="w-10 h-10 mb-3 text-rose-500/50" />
+                    <p className="font-medium text-lg">Este e-book ainda não está disponível para leitura.</p>
+                    <p className="text-sm mt-2 opacity-70">O conteúdo está sendo preparado e sincronizado no servidor seguro.</p>
+                  </div>
+                ) : (
+                  <PdfViewer url={signedUrl || ''} />
+                )}
               </div>
             </div>
           ) : (

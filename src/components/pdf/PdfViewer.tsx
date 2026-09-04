@@ -163,13 +163,14 @@ export function PdfViewer({ url }: PdfViewerProps) {
                 width={450} 
                 height={600} 
                 size="stretch"
-                minWidth={300}
-                maxWidth={600}
+                minWidth={280}
+                maxWidth={800}
                 minHeight={400}
-                maxHeight={800}
+                maxHeight={1000}
                 maxShadowOpacity={0.5}
                 showCover={true}
                 mobileScrollSupport={true}
+                usePortrait={true}
                 onFlip={onPage}
                 ref={flipBookRef}
                 className="html-book"
@@ -214,6 +215,10 @@ export function PdfViewer({ url }: PdfViewerProps) {
         }
         .stf__wrapper {
           background: #060709 !important;
+        }
+        .react-pdf__Page__textContent {
+          user-select: none !important;
+          pointer-events: none !important;
         }
       `}} />
     </div>
