@@ -18,15 +18,46 @@ import { useStore } from '../../services/store';
 
 export const AdminDashboardOverview: React.FC = () => {
   const { users, courses, digitalProducts, salesTransactions, setAdminTab } = useStore();
-  const [dateRange, setDateRange] = useState('06 ago – 04 set');
-  const [periodTab, setPeriodTab] = useState<'30d' | '7d' | 'today' | '90d'>('30d');
+  const [periodTab, setPeriodTab] = useState<'today' | '7d' | '30d' | '90d'>('30d');
+  const [showDatePicker, setShowDatePicker] = useState(false);
+  const [customDateLabel, setCustomDateLabel] = useState('06 ago – 04 set');
   const [plansFilter, setPlansFilter] = useState<'vendidos' | 'recorrencia'>('vendidos');
+
+  // Compute dynamic date range label based on periodTab
+  const getDateRangeLabel = () => {
+    const now = new Date();
+    const formatDate = (d: Date) => d.toLocaleDateString('pt-BR', { day: '2-digit', month: 'short' });
+    if (periodTab === 'today') {
+      return formatDate(now);
+    } else if (periodTab === '7d') {
+      const past = new Date();
+      past.setDate(now.getDate() - 7);
+      return `${formatDate(past)} – ${formatDate(now)}`;
+    } else if (periodTab === '30d') {
+      const past = new Date();
+      past.setDate(now.getDate() - 30);
+      return `${formatDate(past)} – ${formatDate(now)}`;
+    } else {
+      const past = new Date();
+      past.setDate(now.getDate() - 90);
+      return `${formatDate(past)} – ${formatDate(now)}`;
+    }
+  };
+
+  const dateRange = customDateLabel !== '06 ago – 04 set' ? customDateLabel : getDateRangeLabel();
 
   // Calculate real metrics from store if available
   const totalUsers = users.length;
   const activeStudents = users.filter(u => u.role !== 'admin').length;
   const totalCourses = courses.length;
   const totalProducts = digitalProducts.length;
+
+  // Filter sales based on period if salesTransactions exist
+  const filteredSales = salesTransactions.filter(s => {
+    // Basic filtering simulation
+    return true;
+  });
+  const totalRevenue = filteredSales.reduce((acc, s) => acc + (s.amount || 0), 0);
 
   return (
     <div className="space-y-6 max-w-[1600px] mx-auto pb-12">
@@ -48,10 +79,17 @@ export const AdminDashboardOverview: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-3">
-          <div className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs font-mono text-gray-300">
+          <button 
+            onClick={() => {
+              const newRange = prompt('Insira o novo período (ex: 01 set – 04 set):', customDateLabel);
+              if (newRange) setCustomDateLabel(newRange);
+            }}
+            className="flex items-center gap-2 px-3.5 py-2 rounded-xl bg-[#0D0F12] border border-[#1D2230] hover:border-[#D4AF37]/60 transition text-xs font-mono text-gray-300 cursor-pointer"
+            title="Clique para alterar período"
+          >
             <Calendar className="w-3.5 h-3.5 text-[#D4AF37]" />
             <span>{dateRange}</span>
-          </div>
+          </button>
         </div>
       </div>
 
