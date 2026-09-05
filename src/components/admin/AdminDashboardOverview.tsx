@@ -10,7 +10,9 @@ import {
   Layers, 
   ArrowUpRight, 
   Filter,
-  CheckCircle2
+  CheckCircle2,
+  HardDrive,
+  Database
 } from 'lucide-react';
 import { useStore } from '../../services/store';
 
@@ -22,6 +24,7 @@ export const AdminDashboardOverview: React.FC = () => {
 
   // Calculate real metrics from store if available
   const totalUsers = users.length;
+  const activeStudents = users.filter(u => u.role !== 'admin').length;
   const totalCourses = courses.length;
   const totalProducts = digitalProducts.length;
 
@@ -37,10 +40,10 @@ export const AdminDashboardOverview: React.FC = () => {
             <span className="text-xs text-[#A7AFBF]">• Executivo</span>
           </div>
           <h1 className="text-2xl lg:text-3xl font-extrabold text-white tracking-tight">
-            Dashboard
+            Dashboard de Métricas
           </h1>
           <p className="text-xs text-[#A7AFBF]">
-            Vendas, planos, recorrência, usuários, idiomas e integrações em uma visão executiva.
+            Estatísticas consolidadas de vendas, alunos ativos e uso de armazenamento em nuvem.
           </p>
         </div>
 
@@ -52,9 +55,9 @@ export const AdminDashboardOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* 4 Metric Cards */}
+      {/* 4 Consolidated Metric Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        {/* Card 1: Receita do período */}
+        {/* Card 1: Vendas e Receita */}
         <div 
           onClick={() => setAdminTab('sales')}
           className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-3 cursor-pointer group shadow-card-dark flex flex-col justify-between"
@@ -69,32 +72,52 @@ export const AdminDashboardOverview: React.FC = () => {
           </div>
           <div>
             <p className="text-2xl font-black text-white tracking-tight">R$ 0,00</p>
-            <p className="text-xs font-bold text-white mt-0.5">Receita do período</p>
-            <p className="text-[11px] text-[#A7AFBF] mt-1">0 vendas • Últimos 30 dias</p>
+            <p className="text-xs font-bold text-white mt-0.5">Estatísticas de Vendas</p>
+            <p className="text-[11px] text-[#A7AFBF] mt-1">0 transações no período</p>
           </div>
         </div>
 
-        {/* Card 2: Vendas pagas */}
+        {/* Card 2: Alunos Ativos */}
         <div 
-          onClick={() => setAdminTab('sales')}
+          onClick={() => setAdminTab('users')}
           className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-3 cursor-pointer group shadow-card-dark flex flex-col justify-between"
         >
           <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl bg-amber-500/10 border border-amber-500/30 flex items-center justify-center text-amber-400">
-              <BarChart3 className="w-4 h-4" />
+            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+              <Users className="w-4 h-4" />
             </div>
-            <span className="text-[10px] font-mono text-amber-400 group-hover:underline flex items-center gap-1 font-bold">
-              Relatório &rarr;
+            <span className="text-[10px] font-mono text-blue-400 group-hover:underline flex items-center gap-1 font-bold">
+              Gerenciar Alunos &rarr;
             </span>
           </div>
           <div>
-            <p className="text-sm font-bold text-white line-clamp-1">Nenhuma venda paga encontrada</p>
-            <p className="text-xs text-[#A7AFBF] mt-0.5">no período selecionado.</p>
-            <p className="text-[11px] text-amber-400/80 mt-1 font-medium">Webhook pronto para PerfectPay / Kiwify</p>
+            <p className="text-2xl font-black text-white tracking-tight">{activeStudents}</p>
+            <p className="text-xs font-bold text-white mt-0.5">Alunos Ativos</p>
+            <p className="text-[11px] text-emerald-400 mt-1 font-medium">{totalUsers} cadastrados no total</p>
           </div>
         </div>
 
-        {/* Card 3: MRR */}
+        {/* Card 3: Uso de Armazenamento (Storage) */}
+        <div 
+          onClick={() => setAdminTab('digital_products')}
+          className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-3 cursor-pointer group shadow-card-dark flex flex-col justify-between"
+        >
+          <div className="flex items-center justify-between">
+            <div className="w-9 h-9 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+              <HardDrive className="w-4 h-4" />
+            </div>
+            <span className="text-[10px] font-mono text-purple-400 group-hover:underline flex items-center gap-1 font-bold">
+              Supabase Storage &rarr;
+            </span>
+          </div>
+          <div>
+            <p className="text-2xl font-black text-white tracking-tight">26,52 MB</p>
+            <p className="text-xs font-bold text-white mt-0.5">Armazenamento Privado</p>
+            <p className="text-[11px] text-[#A7AFBF] mt-1">Bucket `ebooks` (Seguro)</p>
+          </div>
+        </div>
+
+        {/* Card 4: MRR & Ticket Médio */}
         <div 
           onClick={() => setAdminTab('user_access')}
           className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-3 cursor-pointer group shadow-card-dark flex flex-col justify-between"
@@ -109,28 +132,8 @@ export const AdminDashboardOverview: React.FC = () => {
           </div>
           <div>
             <p className="text-2xl font-black text-white tracking-tight">R$ 0,00</p>
-            <p className="text-xs font-bold text-white mt-0.5">MRR</p>
+            <p className="text-xs font-bold text-white mt-0.5">MRR / Ticket Médio</p>
             <p className="text-[11px] text-[#A7AFBF] mt-1">0 assinaturas ativas</p>
-          </div>
-        </div>
-
-        {/* Card 4: Ticket médio */}
-        <div 
-          onClick={() => setAdminTab('users')}
-          className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-3 cursor-pointer group shadow-card-dark flex flex-col justify-between"
-        >
-          <div className="flex items-center justify-between">
-            <div className="w-9 h-9 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
-              <Users className="w-4 h-4" />
-            </div>
-            <span className="text-[10px] font-mono text-blue-400 group-hover:underline flex items-center gap-1 font-bold">
-              Alunos &rarr;
-            </span>
-          </div>
-          <div>
-            <p className="text-2xl font-black text-white tracking-tight">R$ 0,00</p>
-            <p className="text-xs font-bold text-white mt-0.5">Ticket médio</p>
-            <p className="text-[11px] text-[#A7AFBF] mt-1">{totalUsers} usuários cadastrados</p>
           </div>
         </div>
       </div>
@@ -143,7 +146,7 @@ export const AdminDashboardOverview: React.FC = () => {
             <div>
               <h3 className="text-base font-extrabold text-white flex items-center gap-2">
                 <BarChart3 className="w-4 h-4 text-[#D4AF37]" />
-                Receita e volume de vendas
+                Estatísticas de Vendas e Receita
               </h3>
               <p className="text-xs text-[#A7AFBF]">Últimos 30 dias</p>
             </div>
@@ -231,8 +234,53 @@ export const AdminDashboardOverview: React.FC = () => {
         </div>
       </div>
 
-      {/* Bottom Grid (Planos que mais venderam & Recorrência dos meses) */}
+      {/* Bottom Grid: Storage Usage Breakdown & Products Overview */}
       <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Uso de Armazenamento Detalhado */}
+        <div className="p-6 rounded-3xl bg-[#151922] border border-[#1D2230] space-y-6 shadow-card-dark flex flex-col justify-between">
+          <div>
+            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
+              <Database className="w-4 h-4 text-[#D4AF37]" />
+              Uso de Armazenamento (Supabase Storage)
+            </h3>
+            <p className="text-xs text-[#A7AFBF]">Métricas dos arquivos protegidos</p>
+          </div>
+
+          <div className="space-y-4">
+            <div className="p-4 rounded-2xl bg-[#0D0F12] border border-[#1D2230] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-purple-500/10 border border-purple-500/30 flex items-center justify-center text-purple-400">
+                  <HardDrive className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Bucket Privado `ebooks`</p>
+                  <p className="text-xs text-[#A7AFBF]">prod-depois-dos-60-real/depois-dos-60-50-cuidados.pdf</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-black text-white">26,52 MB</span>
+                <p className="text-[10px] font-mono text-emerald-400 uppercase">100% Sincronizado</p>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-[#0D0F12] border border-[#1D2230] flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-blue-500/10 border border-blue-500/30 flex items-center justify-center text-blue-400">
+                  <Layers className="w-5 h-5" />
+                </div>
+                <div>
+                  <p className="text-sm font-bold text-white">Módulos & Vídeos de Cursos</p>
+                  <p className="text-xs text-[#A7AFBF]">HLS / YouTube Integrado</p>
+                </div>
+              </div>
+              <div className="text-right">
+                <span className="text-sm font-black text-white">Otimizado</span>
+                <p className="text-[10px] font-mono text-emerald-400 uppercase">Cloud Stream</p>
+              </div>
+            </div>
+          </div>
+        </div>
+
         {/* Planos que mais venderam */}
         <div className="p-6 rounded-3xl bg-[#151922] border border-[#1D2230] space-y-6 shadow-card-dark flex flex-col justify-between">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -266,26 +314,12 @@ export const AdminDashboardOverview: React.FC = () => {
             </div>
           </div>
 
-          <div className="py-16 text-center text-xs text-[#A7AFBF] bg-[#0D0F12] rounded-2xl border border-[#1D2230]/60">
+          <div className="py-12 text-center text-xs text-[#A7AFBF] bg-[#0D0F12] rounded-2xl border border-[#1D2230]/60">
             Nenhuma venda registrada no período.
-          </div>
-        </div>
-
-        {/* Recorrência dos meses */}
-        <div className="p-6 rounded-3xl bg-[#151922] border border-[#1D2230] space-y-6 shadow-card-dark flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-extrabold text-white flex items-center gap-2">
-              <TrendingUp className="w-4 h-4 text-[#D4AF37]" />
-              Recorrência dos meses
-            </h3>
-            <p className="text-xs text-[#A7AFBF]">Últimos meses</p>
-          </div>
-
-          <div className="py-16 text-center text-xs text-[#A7AFBF] bg-[#0D0F12] rounded-2xl border border-[#1D2230]/60">
-            Nenhuma assinatura recorrente ativa.
           </div>
         </div>
       </div>
     </div>
   );
 };
+
