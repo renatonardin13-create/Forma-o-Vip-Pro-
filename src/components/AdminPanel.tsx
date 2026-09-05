@@ -55,6 +55,7 @@ import { UserAccessManager } from './UserAccessManager';
 import { AdminBannersManager } from './AdminBannersManager';
 import { AdminBannerStats } from './AdminBannerStats';
 import { AdminSalesManager } from './AdminSalesManager';
+import { AdminDashboardOverview } from './admin/AdminDashboardOverview';
 import { getYouTubeBackgroundEmbedUrl, extractYouTubeId } from '../utils/videoHelpers';
 
 export const AdminPanel: React.FC = () => {
@@ -227,102 +228,7 @@ export const AdminPanel: React.FC = () => {
 
       {/* TAB 1: ADMIN DASHBOARD */}
       {activeAdminTab === 'dashboard' && (
-        <div className="space-y-6">
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-            <div 
-              onClick={() => setActiveAdminTab('users')}
-              className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-2 cursor-pointer group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Total de Alunos</span>
-                <span className="text-[10px] text-[#D4AF37] font-bold group-hover:underline">Ver Painel &rarr;</span>
-              </div>
-              <p className="text-3xl font-black text-white">{users.length}</p>
-              <p className="text-[11px] text-emerald-400 font-medium">Dashboard VIP Premium Ativo</p>
-            </div>
-            <div 
-              onClick={() => setActiveAdminTab('member_areas')}
-              className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-2 cursor-pointer group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Áreas de Membros</span>
-                <span className="text-[10px] text-[#D4AF37] font-bold group-hover:underline">Gerenciar &rarr;</span>
-              </div>
-              <p className="text-3xl font-black text-[#D4AF37]">3 Áreas</p>
-              <p className="text-[11px] text-[#A7AFBF]">Ecossistemas isolados</p>
-            </div>
-            <div 
-              onClick={() => setActiveAdminTab('digital_products')}
-              className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] hover:border-[#D4AF37]/60 transition space-y-2 cursor-pointer group"
-            >
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Produtos Digitais</span>
-                <span className="text-[10px] text-[#D4AF37] font-bold group-hover:underline">Ver Catálogo &rarr;</span>
-              </div>
-              <p className="text-3xl font-black text-white">Catálogo Ativo</p>
-              <p className="text-[11px] text-emerald-400 font-medium">Cursos, Ebooks, SaaS & Apps</p>
-            </div>
-            <div className="p-5 rounded-2xl bg-[#151922] border border-[#1D2230] space-y-2">
-              <span className="text-[10px] font-bold text-[#A7AFBF] uppercase font-mono">Disponibilidade Sistema</span>
-              <p className="text-3xl font-black text-white">99.98%</p>
-              <p className="text-[11px] text-emerald-400 font-medium">SaaS Cloud Operational</p>
-            </div>
-          </div>
-
-          {/* Quick Overview Table */}
-          <div className="p-6 rounded-3xl bg-[#151922] border border-[#1D2230] space-y-4">
-            <h3 className="text-base font-bold text-white flex items-center gap-2">
-              <BookOpen className="w-4 h-4 text-[#D4AF37]" />
-              Status Rápido das Formações
-            </h3>
-
-            <div className="overflow-x-auto">
-              <table className="w-full text-left text-xs text-[#A7AFBF]">
-                <thead className="bg-[#0D0F12] text-white uppercase font-mono text-[10px] border-b border-[#1D2230]">
-                  <tr>
-                    <th className="p-3">Curso</th>
-                    <th className="p-3">Categoria</th>
-                    <th className="p-3">Instrutor</th>
-                    <th className="p-3">Módulos</th>
-                    <th className="p-3">Status</th>
-                    <th className="p-3 text-right">Ações</th>
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-[#1D2230]">
-                  {courses.map(course => (
-                    <tr key={course.id} className="hover:bg-[#1D2230]/30 transition">
-                      <td className="p-3 font-bold text-white flex items-center gap-3">
-                        <img src={course.thumbnailUrl} alt="" className="w-10 h-7 rounded object-cover" />
-                        <span className="truncate max-w-xs">{course.title}</span>
-                      </td>
-                      <td className="p-3">{course.category}</td>
-                      <td className="p-3">{course.instructor.name}</td>
-                      <td className="p-3">{course.modules.length} Módulos</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 rounded text-[10px] font-bold ${
-                          course.isPublished ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'
-                        }`}>
-                          {course.isPublished ? 'PUBLICADO' : 'RASCUNHO'}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        <button
-                          onClick={() => {
-                            setSelectedCourseId(course.id);
-                            setActiveAdminTab('modules_lessons');
-                          }}
-                          className="px-3 py-1 bg-[#0D0F12] text-[#D4AF37] hover:bg-[#D4AF37] hover:text-black rounded-lg transition text-[11px] font-bold border border-[#1D2230]"
-                        >
-                          Gerenciar Aulas
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            </div>
-          </div>
-        </div>
+        <AdminDashboardOverview />
       )}
 
       {/* TAB: MULTI ÁREAS DE MEMBROS (MÓDULO 30) */}
