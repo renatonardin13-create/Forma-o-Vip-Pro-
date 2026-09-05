@@ -68,9 +68,14 @@ export const AdminUserDashboard: React.FC<AdminUserDashboardProps> = ({
   const [userToDelete, setUserToDelete] = useState<User | null>(null);
 
   // New User Form State
+  const generateTempPassword = () => {
+    return 'vip-' + Math.random().toString(36).substring(2, 10) + '!';
+  };
+
   const [newUserForm, setNewUserForm] = useState({
     name: '',
     email: '',
+    tempPassword: generateTempPassword(),
     avatar: 'https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=400&q=80',
     role: 'student' as 'student' | 'admin',
     plan: 'VIP BLACK EXECUTIVE',
@@ -775,6 +780,39 @@ export const AdminUserDashboard: React.FC<AdminUserDashboardProps> = ({
                   onChange={(e) => setNewUserForm(prev => ({ ...prev, email: e.target.value }))}
                   className="w-full h-10 px-3 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs text-white focus:outline-none focus:border-[#D4AF37]"
                 />
+              </div>
+
+              <div className="space-y-1">
+                <div className="flex items-center justify-between">
+                  <label className="text-xs font-semibold text-[#A7AFBF]">Senha Temporária Gerada</label>
+                  <button
+                    type="button"
+                    onClick={() => setNewUserForm(prev => ({ ...prev, tempPassword: generateTempPassword() }))}
+                    className="text-[10px] text-[#D4AF37] hover:underline font-mono"
+                  >
+                    🔄 Gerar nova senha
+                  </button>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="text"
+                    required
+                    value={newUserForm.tempPassword}
+                    onChange={(e) => setNewUserForm(prev => ({ ...prev, tempPassword: e.target.value }))}
+                    className="w-full h-10 px-3 rounded-xl bg-[#0D0F12] border border-[#1D2230] text-xs font-mono text-[#D4AF37] font-bold focus:outline-none focus:border-[#D4AF37]"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => {
+                      navigator.clipboard.writeText(newUserForm.tempPassword);
+                      alert('Senha copiada para a área de transferência!');
+                    }}
+                    className="px-3 h-10 rounded-xl bg-[#0D0F12] text-xs font-bold text-white border border-[#1D2230] hover:border-[#D4AF37] transition whitespace-nowrap"
+                  >
+                    Copiar
+                  </button>
+                </div>
+                <p className="text-[10px] text-[#A7AFBF]">Esta senha é gerada automaticamente para cadastro manual e envio ao aluno.</p>
               </div>
 
               <div className="grid grid-cols-2 gap-3">
